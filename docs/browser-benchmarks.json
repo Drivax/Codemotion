@@ -1,0 +1,30 @@
+[
+  {
+    "name": "synthetic-10",
+    "import_to_visible_ms": 1582,
+    "symbols_response_to_visible_ms": 670,
+    "rendered_nodes": 10,
+    "page_errors": []
+  },
+  {
+    "name": "synthetic-100",
+    "import_to_visible_ms": 1447,
+    "symbols_response_to_visible_ms": 486,
+    "rendered_nodes": 1,
+    "page_errors": []
+  },
+  {
+    "name": "synthetic-500",
+    "import_to_visible_ms": 4425,
+    "symbols_response_to_visible_ms": 1741,
+    "rendered_nodes": 1,
+    "page_errors": []
+  },
+  {
+    "name": "rl-validation",
+    "import_to_visible_ms": 19090,
+    "symbols_response_to_visible_ms": 1041,
+    "rendered_nodes": 3,
+    "page_errors": []
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "class": "CreditLimitEnv",
+  "methods": [
+    "__init__",
+    "state",
+    "_predict_pd",
+    "_get_observation",
+    "reset",
+    "_info",
+    "_history_row",
+    "step",
+    "get_history",
+    "get_diagnostics",
+    "get_latent_diagnostics"
+  ],
+  "attributes": [
+    "_history",
+    "action_space",
+    "observation_space",
+    "_record_diagnostics",
+    "_traits",
+    "_predicted_pd",
+    "pd_model",
+    "_portfolio",
+    "_record_history",
+    "_diagnostics",
+    "_dgp",
+    "_state",
+    "config",
+    "_elapsed",
+    "_done",
+    "metadata",
+    "_risk_history",
+    "static_action_index",
+    "severe_delinquency_months"
+  ],
+  "function_id": "a9a01d55e14fca38908a2e9a",
+  "operations": 39,
+  "control_edges": 43,
+  "data_edges": 71,
+  "limitations": []
+}

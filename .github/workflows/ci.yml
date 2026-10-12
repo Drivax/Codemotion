@@ -1,0 +1,33 @@
+name: CodeMotion checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m venv .venv
+      - run: .venv/bin/python -m pip install -r requirements.lock
+      - run: .venv/bin/python -m pip install -e . --no-deps
+      - run: npm ci --prefix frontend
+      - run: node frontend/scripts/copy-monaco.mjs
+      - run: cd frontend && npx playwright install --with-deps chromium
+      - run: .venv/bin/python scripts/check.py --e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results/
