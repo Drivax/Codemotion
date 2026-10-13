@@ -10,13 +10,16 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.analysis.repository_loader import Limits, safe_path
 from app.services.jobs import JobStore
+from app.services.archive import SnapshotArchive
+from app.services.exploration import exploration_router
 
 logger = logging.getLogger("codemotion")
 app = FastAPI(title="CodeMotion", version="0.1.0")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
 ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type"])
-store = JobStore()
+archive = SnapshotArchive(Path(__file__).resolve().parents[2] / ".codemotion" / "snapshots")
+store = JobStore(archive)
 
 
 @app.middleware("http")
@@ -47,6 +50,7 @@ class ImportRequest(BaseModel):
     name: str = Field(default="repository", min_length=1, max_length=120)
     files: dict[str, str] | None = None
     github_url: str | None = Field(default=None, max_length=300)
+    github_ref: str | None = Field(default=None, max_length=200)
 
     @model_validator(mode="after")
     def validate_input(self):
@@ -95,14 +99,34 @@ def cancel_job(job_id: str):
 def repository(repository_id: str):
     result = store.repositories.get(repository_id)
     if result is None:
-        raise HTTPException(404, "Snapshot not found or evicted; import it again")
+        try:
+            result = archive.get(repository_id)
+        except ValueError:
+            result = None
+        if result is not None:
+            with store.lock:
+                store.repositories[repository_id] = result
+                while len(store.repositories) > 2:
+                    store.repositories.popitem(last=False)
+    if result is None:
+        raise HTTPException(404, "Snapshot absent, incompatible ou supprimé ; importez le projet à nouveau")
     return result
+
+
+@app.post("/api/repositories/{repository_id}/reanalyze", status_code=202)
+def reanalyze(repository_id: str):
+    existing = repository(repository_id)
+    try:
+        return store.submit({"name": existing.repository.name, "files": {f.path: f.source for f in existing.files},
+                             "revision": existing.repository.revision, "force": True})
+    except ValueError as error:
+        raise HTTPException(429, str(error)) from error
 
 
 @app.get("/api/repositories/{repository_id}")
 def summary(repository_id: str):
     result = repository(repository_id)
-    return {"schema_version": result.schema_version, "repository": result.repository,
+    return {"schema_version": result.schema_version, "engine_version": result.engine_version, "repository": result.repository,
             "diagnostics": result.diagnostics, "metrics": result.metrics,
             "files": [{"path": f.path, "package": f.package, "parsed": f.parsed} for f in result.files]}
 
@@ -173,3 +197,22 @@ def example(name: Literal["basic-functions", "object-oriented", "branching", "lo
     root = Path(__file__).resolve().parents[2] / "examples" / name
     files = {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in sorted(root.rglob("*.py"))}
     return import_repository(ImportRequest(name=name, files=files))
+
+
+@app.get("/api/snapshots")
+def snapshots():
+    return archive.list()
+
+
+@app.delete("/api/snapshots/{identifier}")
+def delete_snapshot(identifier: str):
+    try:
+        archive.delete(identifier)
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+    with store.lock:
+        store.repositories.pop(identifier, None)
+    return {"deleted": identifier}
+
+
+app.include_router(exploration_router(repository))

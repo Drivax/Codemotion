@@ -1,229 +1,185 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
-import { Activity, ArrowLeft, ArrowUpRight, Box, Braces, Check, ChevronDown, Code2, Download, FileCode2, FolderOpen, GitBranch, Play, Layers3, LoaderCircle, Search, Settings2, Sun, Moon, Upload, X, Network, RotateCcw } from 'lucide-react';
-import { API, api, post } from '@/lib/api';
+import { Activity, Box, Code2, FolderOpen, GitBranch, Play, Sun, Moon, Upload, X, Braces, ArrowUpRight, FileCode2 } from 'lucide-react';
+import { api, post } from '@/lib/api';
 import type { Details, FileRecord, Flow, Graph, Job, Relation, SourceLocation, Summary, SymbolNode } from '@/lib/types';
-import { initialPlayback, type Playback } from '@/lib/playback';
+import { initialPlayback, validPlayback, type Playback } from '@/lib/playback';
+import { defaultGraphOptions, saveSession, validateSessionState, type StoredSession, type CanvasState, type GraphOptions } from '@/lib/session';
+import { exportView } from '@/lib/export';
 import Player from './Player';
-const GraphCanvas = dynamic(() => import('./GraphCanvas'), { ssr: false, loading: () => <div className="empty-small">Preparing canvas…</div> });
+import Explorer from './Explorer';
+import Palette from './Palette';
+import Dialog from './Dialog';
+import Insights from './Insights';
+import Sessions from './Sessions';
+const GraphCanvas = dynamic(() => import('./GraphCanvas'), { ssr: false });
 const SourceEditor = dynamic(() => import('./SourceEditor'), { ssr: false });
 interface View { mode: 'objects' | 'flow'; selected: string | null; flowId: string | null; playback: Playback | null }
+interface Visit { view: View; stack: View[] }
 const initialView: View = { mode: 'objects', selected: null, flowId: null, playback: null };
 const errorText = (e: unknown) => e instanceof Error ? e.message : String(e);
-const defaultKinds = ['Class', 'Function'];
-const allKinds = ['Class', 'Function', 'Method', 'Module'];
+const locationAt = (file: string): SourceLocation => ({ file, start_line: 1, end_line: 1, start_column: 0, end_column: 0 });
 export default function Workspace() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [graph, setGraph] = useState<Graph>({ nodes: [], edges: [], total: 0 });
-  const [symbols, setSymbols] = useState<SymbolNode[]>([]);
-  const [view, setView] = useState<View>(initialView);
-  const [history, setHistory] = useState<View[]>([]);
-  const [details, setDetails] = useState<Details | null>(null);
-  const [flow, setFlow] = useState<Flow | null>(null);
-  const [source, setSource] = useState('');
-  const [sourceOverride, setSourceOverride] = useState<SourceLocation | null>(null);
-  const [relation, setRelation] = useState<Relation | null>(null);
-  const [job, setJob] = useState<Job | null>(null);
-  const [error, setError] = useState('');
-  const [importOpen, setImportOpen] = useState(false);
-  const [github, setGithub] = useState('');
-  const [search, setSearch] = useState('');
-  const [kinds, setKinds] = useState(defaultKinds);
-  const [relations, setRelations] = useState(['CONTAINS', 'INHERITS', 'INSTANTIATES', 'CALLS', 'IMPORTS']);
-  const [focus, setFocus] = useState(false);
-  const [graphLimit, setGraphLimit] = useState(60);
-  const [layoutKey, setLayoutKey] = useState(0);
-  const [light, setLight] = useState(false);
-  const [diagnostics, setDiagnostics] = useState(false);
-  const [settings, setSettings] = useState(false);
-  const [explorerWidth, setExplorerWidth] = useState(242);
-  const [inspectorWidth, setInspectorWidth] = useState(320);
-  const [sourceHeight, setSourceHeight] = useState(230);
-  const [busy, setBusy] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const detailsCache = useRef(new Map<string, Details>());
-  const flowCache = useRef(new Map<string, Flow>());
-  const sourceCache = useRef(new Map<string, string>());
-  const requestEpoch = useRef(0);
+  const [summary, setSummary] = useState<Summary | null>(null), [graph, setGraph] = useState<Graph>({ nodes: [], edges: [], total: 0 });
+  const [symbols, setSymbols] = useState<SymbolNode[]>([]), [view, setView] = useState<View>(initialView);
+  const [history, setHistory] = useState<Visit[]>([]), [future, setFuture] = useState<Visit[]>([]), [stack, setStack] = useState<View[]>([]);
+  const [details, setDetails] = useState<Details | null>(null), [flow, setFlow] = useState<Flow | null>(null), [source, setSource] = useState('');
+  const [sourceOverride, setSourceOverride] = useState<SourceLocation | null>(null), [relation, setRelation] = useState<Relation | null>(null), [inspected, setInspected] = useState<string | null>(null);
+  const [job, setJob] = useState<Job | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [importOpen, setImportOpen] = useState(false), [github, setGithub] = useState(''), [githubRef, setGithubRef] = useState('');
+  const [search, setSearch] = useState(''), [expanded, setExpanded] = useState<string[]>([]), [favorites, setFavorites] = useState<string[]>([]);
+  const [kinds, setKinds] = useState(['Class', 'Function', 'Method', 'Module']), [relations, setRelations] = useState(['CONTAINS', 'INHERITS', 'INSTANTIATES', 'CALLS', 'IMPORTS']);
+  const [focus, setFocus] = useState(false), [direction, setDirection] = useState('both'), [depth, setDepth] = useState(1), [hierarchy, setHierarchy] = useState<string | null>(null);
+  const [graphLimit, setGraphLimit] = useState(60), [layoutKey, setLayoutKey] = useState(0), [graphBusy, setGraphBusy] = useState(false), [retry, setRetry] = useState(0);
+  const [options, setOptions] = useState<GraphOptions>(defaultGraphOptions), [canvases, setCanvases] = useState<Record<string, CanvasState>>({}), [light, setLight] = useState(false);
+  const [settings, setSettings] = useState(false), [diagnostics, setDiagnostics] = useState(false), [palette, setPalette] = useState(false), [sessionsOpen, setSessionsOpen] = useState(false), [exportOpen, setExportOpen] = useState(false), [selectionOnly, setSelectionOnly] = useState(false);
+  const [insight, setInsight] = useState<{ title: string; path: string } | null>(null), [pathTarget, setPathTarget] = useState('');
+  const [thresholds, setThresholds] = useState({ lines: 80, members: 20, connections: 20 });
+  const [maximized, setMaximized] = useState<'source' | 'graph' | ''>('');
+  const deepLinkLoaded = useRef(false);
+  const [panels, setPanels] = useState({ explorer: true, inspector: true, source: true });
+  const [explorerWidth, setExplorerWidth] = useState(242), [inspectorWidth, setInspectorWidth] = useState(320), [sourceHeight, setSourceHeight] = useState(230);
+  const fileInput = useRef<HTMLInputElement>(null), repositoryEpoch = useRef(0), flowEpoch = useRef(0);
+  const detailsCache = useRef(new Map<string, Details>()), flowCache = useRef(new Map<string, Flow>()), sourceCache = useRef(new Map<string, string>());
   const repo = summary?.repository.id;
-  const active = flow?.operations.find(o => o.id === view.playback?.trail[view.playback.index]);
-  const currentSymbol = symbols.find(s => s.id === view.selected) || details?.symbol;
+  const playingOp = flow?.operations.find(o => o.id === view.playback?.trail[view.playback.index]);
+  const active = flow?.operations.find(o => o.id === inspected) || playingOp;
+  const currentSymbol = symbols.find(s => s.id === view.selected) || (details?.symbol.id === view.selected ? details.symbol : undefined);
+  const canOpenFlow = !!currentSymbol && ['Function', 'Method'].includes(currentSymbol.kind);
   const sourceLocation = sourceOverride || (view.mode === 'flow' ? active?.source : details?.symbol.source) || null;
   const running = busy || job?.status === 'running' || job?.status === 'queued';
-
-  const navigate = useCallback((next: View) => {
-    setHistory(h => [...h, view].slice(-40)); setView(next); setSourceOverride(null); setRelation(null);
-  }, [view]);
-  const select = useCallback((id: string) => navigate({ ...view, mode: 'objects', selected: id }), [navigate, view]);
-  const back = () => { const previous = history.at(-1); if (previous) { setView(previous); setHistory(h => h.slice(0, -1)); setSourceOverride(null); setRelation(null); } };
-
+  const canvasKey = view.mode === 'flow' ? `flow:${view.flowId}` : `objects:${hierarchy ?? (focus ? view.selected : 'all')}`;
+  const navigate = useCallback((next: View) => { setHistory(h => [...h, { view, stack }].slice(-40)); setFuture([]); setView(next); setSourceOverride(null); setRelation(null); setInspected(null); }, [view, stack]);
+  const select = useCallback((id: string) => { flowEpoch.current++; setHierarchy(null); if (window.matchMedia('(max-width:850px)').matches) setPanels(p => ({ ...p, explorer: false, inspector: true })); navigate({ ...view, mode: 'objects', selected: id }); }, [navigate, view]);
+  const back = () => { const previous = history.at(-1); if (previous) { setFuture(f => [{ view, stack }, ...f]); setView(previous.view); setStack(previous.stack); setHistory(h => h.slice(0, -1)); setInspected(null); setSourceOverride(null); setRelation(null); } };
+  const forward = () => { if (future[0]) { setHistory(h => [...h, { view, stack }]); setView(future[0].view); setStack(future[0].stack); setFuture(f => f.slice(1)); setInspected(null); setSourceOverride(null); setRelation(null); } };
   const loadRepository = useCallback(async (id: string) => {
-    const [meta, graphData] = await Promise.all([api<Summary>(`/repositories/${id}`), api<Graph>(`/repositories/${id}/graph?limit=5000`)]);
+    const epoch = ++repositoryEpoch.current; flowEpoch.current++;
+    const meta = await api<Summary>(`/repositories/${id}`);
     const items: SymbolNode[] = [];
-    for (let offset = 0; ; offset += 1000) {
-      const page = await api<{ items: SymbolNode[]; total: number }>(`/repositories/${id}/symbols?offset=${offset}&limit=1000`);
-      items.push(...page.items); if (items.length >= page.total) break;
-    }
+    for (let offset = 0; ; offset += 1000) { const page = await api<{ items: SymbolNode[]; total: number }>(`/repositories/${id}/symbols?offset=${offset}&limit=1000`); items.push(...page.items); if (items.length >= page.total) break; if (epoch !== repositoryEpoch.current) return; }
+    if (epoch !== repositoryEpoch.current) return;
     detailsCache.current.clear(); flowCache.current.clear(); sourceCache.current.clear();
     items.sort((a, b) => (a.source?.file || '').localeCompare(b.source?.file || '') || (a.source?.start_line || 0) - (b.source?.start_line || 0));
-    setSummary(meta); setGraph(graphData); setSymbols(items); setFocus(graphData.nodes.length > 80); setHistory([]); setSourceOverride(null); setRelation(null); setFlow(null);
+    setSummary(meta); setSymbols(items); setGraph({ nodes: [], edges: [], total: 0 }); setFocus(items.length > 80); setHierarchy(items.length > 80 ? '' : null);
+    setHistory([]); setFuture([]); setStack([]); setSourceOverride(null); setRelation(null); setInspected(null); setFlow(null); setDetails(null); setCanvases({}); setExpanded([]); setFavorites([]);
     setView({ ...initialView, selected: items.find(n => n.kind === 'Class')?.id || items.find(n => n.kind === 'Function')?.id || items[0]?.id || null });
+    if (window.matchMedia('(max-width:850px)').matches) setPanels({ explorer: false, inspector: false, source: true });
     setImportOpen(false); setJob(null); setSearch(''); setError('');
   }, []);
-
   useEffect(() => {
     if (!job || !['queued', 'running'].includes(job.status)) return;
     let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      try {
-        const updated = await api<Job>(`/jobs/${job.id}`);
-        if (cancelled) return;
-        if (updated.status === 'completed' && updated.repository_id) await loadRepository(updated.repository_id);
-        else { setJob(updated); if (updated.status === 'failed') setError(updated.error || 'Analysis failed'); }
-      } catch (e) { if (!cancelled) { setError(errorText(e)); setJob(null); } }
-    }, 350);
+    const timer = window.setTimeout(async () => { try { const next = await api<Job>(`/jobs/${job.id}`); if (cancelled) return; if (next.status === 'completed' && next.repository_id) await loadRepository(next.repository_id); else { setJob(next); if (next.status === 'failed') setError(next.error || 'Échec de l’analyse'); } } catch (e) { if (!cancelled) { setError(errorText(e)); setJob(null); } } }, 350);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [job, loadRepository]);
-
   useEffect(() => {
     if (!repo || !view.selected) return;
-    let cancelled = false;
-    const id = view.selected;
-    const cached = detailsCache.current.get(id);
-    if (cached) { setDetails(cached); return; }
-    setDetails(null);
-    api<Details>(`/repositories/${repo}/symbols/${id}`).then(data => {
-      if (!cancelled) { detailsCache.current.set(id, data); setDetails(data); }
-    }).catch(e => { if (!cancelled) setError(errorText(e)); });
-    return () => { cancelled = true; };
-  }, [repo, view.selected]);
-
+    const c = new AbortController(), id = view.selected;
+    const cached = detailsCache.current.get(id); if (cached) { setDetails(cached); return; }
+    setDetails(null); api<Details>(`/repositories/${repo}/symbols/${id}`, { signal: c.signal }).then(data => { if (!c.signal.aborted) { detailsCache.current.set(id, data); setDetails(data); } }).catch(e => { if (!c.signal.aborted) setError(errorText(e)); }); return () => c.abort();
+  }, [repo, view.selected, retry]);
   useEffect(() => {
     if (!repo || !view.flowId) return;
-    let cancelled = false;
-    const id = view.flowId;
-    const cached = flowCache.current.get(id);
-    if (cached) { setFlow(cached); return; }
-    api<Flow>(`/repositories/${repo}/flows/${id}`).then(data => {
-      if (!cancelled) { flowCache.current.set(id, data); setFlow(data); }
-    }).catch(e => { if (!cancelled) setError(errorText(e)); });
-    return () => { cancelled = true; };
-  }, [repo, view.flowId]);
-
+    const c = new AbortController(), id = view.flowId;
+    const cached = flowCache.current.get(id); if (cached) { setFlow(cached); return; }
+    setFlow(null); api<Flow>(`/repositories/${repo}/flows/${id}`, { signal: c.signal }).then(data => { if (!c.signal.aborted) { flowCache.current.set(id, data); setFlow(data); } }).catch(e => { if (!c.signal.aborted) setError(errorText(e)); }); return () => c.abort();
+  }, [repo, view.flowId, retry]);
   useEffect(() => {
     if (!repo || !sourceLocation) return;
-    let cancelled = false;
-    const path = sourceLocation.file;
-    const cached = sourceCache.current.get(path);
-    if (cached !== undefined) { setSource(cached); return; }
-    setSource('');
-    api<FileRecord>(`/repositories/${repo}/source?path=${encodeURIComponent(path)}`).then(data => {
-      if (!cancelled) { sourceCache.current.set(path, data.source || ''); setSource(data.source || ''); }
-    }).catch(e => { if (!cancelled) setError(errorText(e)); });
-    return () => { cancelled = true; };
-  }, [repo, sourceLocation]);
-
+    const c = new AbortController(), path = sourceLocation.file;
+    const cached = sourceCache.current.get(path); if (cached !== undefined) { setSource(cached); return; }
+    setSource(''); api<FileRecord>(`/repositories/${repo}/source?path=${encodeURIComponent(path)}`, { signal: c.signal }).then(data => { if (!c.signal.aborted) { sourceCache.current.set(path, data.source || ''); setSource(data.source || ''); } }).catch(e => { if (!c.signal.aborted) setError(errorText(e)); }); return () => c.abort();
+  }, [repo, sourceLocation, retry]);
+  useEffect(() => {
+    if (!repo || view.mode !== 'objects') return;
+    const c = new AbortController(); setGraphBusy(true);
+    const path = hierarchy !== null ? `/hierarchy?prefix=${encodeURIComponent(hierarchy)}&limit=${graphLimit}` : `/neighborhood?${focus && view.selected ? `focus=${view.selected}&` : ''}pin=${view.selected || ''}&direction=${direction}&depth=${depth}&relations=${relations.join(',')}&limit=${graphLimit}`;
+    api<Graph>(`/repositories/${repo}${path}`, { signal: c.signal }).then(data => { if (!c.signal.aborted) setGraph(data); }).catch(e => { if (!c.signal.aborted) setError(errorText(e)); }).finally(() => { if (!c.signal.aborted) setGraphBusy(false); }); return () => c.abort();
+  }, [repo, view.mode, view.selected, focus, direction, depth, hierarchy, relations, graphLimit, retry]);
+  useEffect(() => { const handler = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(p => !p); } }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width:850px)');
+    const collapse = () => { if (media.matches) setPanels(p => ({ ...p, explorer: false, inspector: false })); };
+    const escape = (event: KeyboardEvent) => { if (media.matches && event.key === 'Escape') collapse(); };
+    collapse();
+    media.addEventListener('change', collapse);
+    window.addEventListener('keydown', escape);
+    return () => { media.removeEventListener('change', collapse); window.removeEventListener('keydown', escape); };
+  }, []);
   const openFlow = async (id: string) => {
     if (!repo) return;
-    if (history.filter(h => h.mode === 'flow').length >= 8) { setError('Exploration depth limit (8) reached. Go back before entering another call.'); return; }
-    try {
-      const data = flowCache.current.get(id) || await api<Flow>(`/repositories/${repo}/flows/${id}`);
-      flowCache.current.set(id, data); setFlow(data);
-      navigate({ mode: 'flow', selected: id, flowId: id, playback: initialPlayback(data) });
-    } catch (e) { setError(errorText(e)); }
+    if (view.mode === 'flow' && stack.length >= 8) { setError('Limite de 8 appels imbriqués. Revenez à un appelant.'); return; }
+    const epoch = ++flowEpoch.current;
+    try { const data = flowCache.current.get(id) || await api<Flow>(`/repositories/${repo}/flows/${id}`); if (epoch !== flowEpoch.current) return; flowCache.current.set(id, data); setFlow(data); if (view.mode === 'flow') setStack(s => [...s, view]); else setStack([]); navigate({ mode: 'flow', selected: id, flowId: id, playback: initialPlayback(data) }); } catch (e) { if (epoch === flowEpoch.current) setError(errorText(e)); }
   };
-  const setPlayback = useCallback((playback: Playback) => { setSourceOverride(null); setView(v => ({ ...v, playback })); }, []);
-
-  const importExample = async (name: string) => {
-    setError(''); setBusy(true);
-    try { setJob(await post<Job>(`/examples/${name}`)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
-  };
+  const setPlayback = useCallback((playback: Playback) => { setSourceOverride(null); setInspected(null); setView(v => ({ ...v, playback })); }, []);
+  const importExample = async (name: string) => { setError(''); setBusy(true); try { setJob(await post<Job>(`/examples/${name}`)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); } };
   const importFiles = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setError(''); setBusy(true);
-    try {
-      const ignored = new Set(['.git', '.venv', 'venv', '__pycache__', 'node_modules', 'dist', 'build', '.pytest_cache', '.mypy_cache']);
-      const selected = [...files].filter(f => (f.name.endsWith('.py') || f.name === '.gitignore') && !f.webkitRelativePath.split('/').some(p => ignored.has(p)));
-      if (selected.length > 2000 || selected.reduce((total, f) => total + f.size, 0) > 20000000 || selected.some(f => f.size > 1000000)) throw new Error('Import exceeds limits: 2,000 files, 20 MB total, 1 MB per file.');
-      if (!selected.length) throw new Error('No Python files in the selected folder.');
-      const payload: Record<string, string> = {};
-      for (const file of selected) { const path = file.webkitRelativePath.split('/').slice(1).join('/') || file.name; payload[path] = await file.text(); }
-      setJob(await post<Job>('/repositories/import', { name: files[0].webkitRelativePath.split('/')[0] || 'local-project', files: payload }));
-    } catch (e) { setError(errorText(e)); } finally { setBusy(false); if (fileInput.current) fileInput.current.value = ''; }
+    if (!files?.length) return; setError(''); setBusy(true);
+    try { const ignored = new Set(['.git', '.venv', 'venv', '__pycache__', 'node_modules', 'dist', 'build', '.pytest_cache', '.mypy_cache']); const selected = [...files].filter(f => (f.name.endsWith('.py') || f.name === '.gitignore') && !f.webkitRelativePath.split('/').some(p => ignored.has(p))); if (selected.length > 2000 || selected.reduce((n, f) => n + f.size, 0) > 20_000_000 || selected.some(f => f.size > 1_000_000)) throw new Error('Limites : 2 000 fichiers, 20 Mo au total, 1 Mo par fichier.'); if (!selected.length) throw new Error('Aucun fichier Python dans le dossier.'); const payload: Record<string, string> = {}; for (const file of selected) payload[file.webkitRelativePath.split('/').slice(1).join('/') || file.name] = await file.text(); setJob(await post<Job>('/repositories/import', { name: files[0].webkitRelativePath.split('/')[0] || 'local-project', files: payload })); } catch (e) { setError(errorText(e)); } finally { setBusy(false); if (fileInput.current) fileInput.current.value = ''; }
   };
-  const importGithub = async () => {
-    setError(''); setBusy(true);
-    try { setJob(await post<Job>('/repositories/import', { github_url: github })); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
-  };
+  const importGithub = async () => { setError(''); setBusy(true); try { setJob(await post<Job>('/repositories/import', { github_url: github, github_ref: githubRef || undefined })); } catch (e) { setError(errorText(e)); } finally { setBusy(false); } };
   const resize = (event: React.PointerEvent, panel: 'left' | 'right' | 'bottom') => {
-    event.preventDefault();
-    const start = { x: event.clientX, y: event.clientY, left: explorerWidth, right: inspectorWidth, bottom: sourceHeight };
-    const move = (e: PointerEvent) => {
-      if (panel === 'left') setExplorerWidth(Math.max(185, Math.min(430, start.left + e.clientX - start.x)));
-      if (panel === 'right') setInspectorWidth(Math.max(250, Math.min(520, start.right - e.clientX + start.x)));
-      if (panel === 'bottom') setSourceHeight(Math.max(120, Math.min(550, start.bottom - e.clientY + start.y)));
-    };
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    event.preventDefault(); const start = { x: event.clientX, y: event.clientY, left: explorerWidth, right: inspectorWidth, bottom: sourceHeight };
+    const move = (e: PointerEvent) => { if (panel === 'left') setExplorerWidth(Math.max(185, Math.min(430, start.left + e.clientX - start.x))); if (panel === 'right') setInspectorWidth(Math.max(250, Math.min(520, start.right - e.clientX + start.x))); if (panel === 'bottom') setSourceHeight(Math.max(120, Math.min(550, start.bottom - e.clientY + start.y))); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   };
-  const visibleGraph = useMemo(() => {
-    let nodes = graph.nodes.filter(n => (kinds.includes(n.kind) || n.id === view.selected) && (!search || n.qualified_name.toLowerCase().includes(search.toLowerCase())));
-    if (focus && view.selected) {
-      const adjacent = new Set([view.selected]);
-      graph.edges.forEach(e => { if (e.source === view.selected || e.target === view.selected) { adjacent.add(e.source); adjacent.add(e.target); } });
-      nodes = nodes.filter(n => adjacent.has(n.id));
-    }
-    const total = nodes.length;
-    nodes = [...nodes].sort((a, b) => Number(b.id === view.selected) - Number(a.id === view.selected)).slice(0, graphLimit);
-    const ids = new Set(nodes.map(n => n.id));
-    return { nodes, edges: graph.edges.filter(e => ids.has(e.source) && ids.has(e.target) && relations.includes(e.kind)), total };
-  }, [graph, kinds, search, focus, view.selected, graphLimit, relations]);
-  const findName = (id: string) => symbols.find(n => n.id === id)?.name || graph.nodes.find(n => n.id === id)?.name || details?.children.find(n => n.id === id)?.name || id.slice(0, 8);
-  const attributes = details?.children.filter(n => n.kind === 'Attribute') || [];
-  const methods = (details?.children.filter(n => ['Method', 'Function'].includes(n.kind)) || []).sort((a, b) => (a.source?.start_line || 0) - (b.source?.start_line || 0));
+  const visibleGraph = useMemo(() => { const nodes = graph.nodes.filter(n => hierarchy !== null || kinds.includes(n.kind) || n.id === view.selected), ids = new Set(nodes.map(n => n.id)); return { ...graph, nodes, edges: graph.edges.filter(e => ids.has(e.source) && ids.has(e.target)), truncated: !!graph.truncated || nodes.length < graph.total }; }, [graph, kinds, hierarchy, view.selected]);
+  const findName = (id: string) => symbols.find(n => n.id === id)?.name || graph.nodes.find(n => n.id === id)?.name || details?.children.find(n => n.id === id)?.name || 'Symbole externe';
+  const attributes = details?.children.filter(n => n.kind === 'Attribute') || [], methods = details?.children.filter(n => ['Method', 'Function'].includes(n.kind)) || [];
   const calls = details?.children.filter(n => n.kind === 'CallSite' && active?.calls.includes(n.id)) || [];
-  const variables = useMemo(() => {
-    const values = new Map<string, { expression: string; literal: string | null; version: string }>();
-    if (view.playback && flow) for (const id of view.playback.trail.slice(0, view.playback.index + 1)) {
-      const op = flow.operations.find(o => o.id === id);
-      op?.writes.forEach(name => values.set(name, { expression: op.expression, literal: op.literal, version: op.definitions[name] }));
-    }
-    return [...values];
-  }, [flow, view.playback]);
-  const selectedFileNodes = (path: string) => symbols.filter(n => n.source?.file === path && ['Class', 'Function', 'Method'].includes(n.kind) && (!search || n.qualified_name.toLowerCase().includes(search.toLowerCase())));
-
-  return <div className={`workspace ${light ? 'light' : ''}`} style={{ '--explorer-width': `${explorerWidth}px`, '--inspector-width': `${inspectorWidth}px`, '--source-height': `${sourceHeight}px` } as CSSProperties}>
+  const variables = useMemo(() => { const values = new Map<string, { expression: string; literal: string | null }>(); if (view.playback && flow) for (const id of view.playback.trail.slice(0, view.playback.index + 1)) { const op = flow.operations.find(o => o.id === id); op?.writes.forEach(name => values.set(name, { expression: op.expression, literal: op.literal })); } return [...values]; }, [flow, view.playback]);
+  const showInsight = (title: string, suffix: string) => setInsight({ title, path: `/repositories/${repo}${suffix}` });
+  const trackVariable = (scope: string, name: string) => { setOptions(o => ({ ...o, variable: name, edgeMode: 'both' })); showInsight(`Variable : ${name}`, `/variables/${scope}?name=${encodeURIComponent(name)}`); };
+  const save = (title: string) => { if (summary) { try { saveSession({ format: 1, repository: summary.repository.id, snapshot: summary.repository.snapshot, title, savedAt: new Date().toISOString(), state: { view, stack, options, canvases, expanded, kinds, relations, focus, depth, direction, hierarchy, panels, favorites, explorerWidth, inspectorWidth, sourceHeight, light, maximized } }); } catch { setError('Stockage navigateur plein ou indisponible.'); } } };
+  const restore = useCallback(async (session: StoredSession) => {
+    try { validateSessionState(session.state); const s = session.state; const candidate = s.view as View; const meta = await api<Summary>(`/repositories/${session.repository}`); if (meta.repository.snapshot !== session.snapshot) throw new Error('Snapshot incompatible.'); if (candidate.selected) await api(`/repositories/${session.repository}/symbols/${candidate.selected}`); if (candidate.flowId && candidate.playback) { const f = await api<Flow>(`/repositories/${session.repository}/flows/${candidate.flowId}`); if (!validPlayback(f, candidate.playback)) throw new Error('Parcours incompatible.'); } if (Array.isArray(s.stack)) for (const frame of s.stack as View[]) { const f = await api<Flow>(`/repositories/${session.repository}/flows/${frame.flowId}`); if (!validPlayback(f, frame.playback)) throw new Error('Pile d’appels incompatible.'); } await loadRepository(session.repository); setView(candidate);
+      if (Array.isArray(s.stack)) setStack((s.stack as View[]).slice(0, 8)); if (s.options) setOptions({ ...defaultGraphOptions, ...s.options as GraphOptions }); if (s.canvases) setCanvases(s.canvases as Record<string, CanvasState>); if (Array.isArray(s.expanded)) setExpanded(s.expanded as string[]); if (Array.isArray(s.kinds)) setKinds(s.kinds as string[]); if (Array.isArray(s.relations)) setRelations(s.relations as string[]); if (Array.isArray(s.favorites)) setFavorites(s.favorites as string[]); setFocus(!!s.focus); setDepth(Math.max(1, Math.min(8, Number(s.depth) || 1))); setDirection(['in','out','both'].includes(String(s.direction)) ? String(s.direction) : 'both'); setHierarchy(typeof s.hierarchy === 'string' ? s.hierarchy : null); if (s.panels) setPanels(s.panels as typeof panels); setExplorerWidth(Math.max(185, Math.min(430, Number(s.explorerWidth) || 242))); setInspectorWidth(Math.max(250, Math.min(520, Number(s.inspectorWidth) || 320))); setSourceHeight(Math.max(120, Math.min(550, Number(s.sourceHeight) || 230))); setLight(!!s.light); setMaximized(s.maximized === 'source' || s.maximized === 'graph' ? s.maximized : ''); setSessionsOpen(false);
+    } catch (e) { setSessionsOpen(false); setError(errorText(e)); }
+  }, [loadRepository]);
+  useEffect(() => {
+    if (deepLinkLoaded.current) return;
+    deepLinkLoaded.current = true;
+    if (!window.location.hash.startsWith('#codemotion=')) return;
+    try {
+      if (window.location.hash.length > 100000) throw new Error('Lien de parcours trop volumineux.');
+      const saved = JSON.parse(decodeURIComponent(window.location.hash.slice(12))) as StoredSession;
+      if (saved.format !== 1 || typeof saved.repository !== 'string' || typeof saved.snapshot !== 'string') throw new Error('Lien incompatible.');
+      void restore(saved);
+    } catch (e) { setError(errorText(e)); }
+  }, [restore]);
+  const directLink = summary ? `http://127.0.0.1:3000/#codemotion=${encodeURIComponent(JSON.stringify({ format: 1, repository: summary.repository.id, snapshot: summary.repository.snapshot, title: 'Lien direct', savedAt: '', state: { view, stack, options } }))}` : '';
+  const overview = () => { setHierarchy(''); setView(v => ({ ...v, mode: 'objects' })); };
+  const architecture = () => showInsight('Architecture', `/architecture?long_lines=${thresholds.lines}&members=${thresholds.members}&connections=${thresholds.connections}`);
+  const canvasProps = { symbols, options: { ...options, light }, saved: canvases[canvasKey], onSave: (state: CanvasState) => setCanvases(c => ({ ...c, [canvasKey]: state })), layoutKey };
+  return <div className={`workspace ${maximized ? `max-${maximized}` : ''} ${light ? 'light' : ''} ${!panels.explorer ? 'hide-explorer' : ''} ${!panels.inspector ? 'hide-inspector' : ''} ${!panels.source ? 'hide-source' : ''}`} style={{ '--explorer-width': `${explorerWidth}px`, '--inspector-width': `${inspectorWidth}px`, '--source-height': `${sourceHeight}px` } as CSSProperties}>
     <input ref={fileInput} type="file" multiple {...{ webkitdirectory: '' }} className="hidden" aria-label="Import Python folder" onChange={e => void importFiles(e.target.files)} />
-    <header className="topbar"><div className="brand"><span className="brand-mark"><Activity size={21} /></span>CodeMotion<span className="version">LOCAL</span></div>
-      {summary && <div className="repo-title"><GitBranch size={14} />{summary.repository.name}<span className="snapshot">{summary.repository.snapshot.slice(0, 7)}</span></div>}
-      <div className="top-actions"><span className="privacy"><span className="status-dot" />Static analysis · no code execution</span><button aria-label="Toggle color theme" title="Toggle color theme" onClick={() => setLight(!light)}>{light ? <Moon size={16} /> : <Sun size={16} />}</button><button className="secondary" onClick={() => setImportOpen(true)}><Upload size={14} />Import repository</button></div>
-    </header>
-    {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={15} /></button></div>}
-    {running && <div className="progress-banner" role="status"><LoaderCircle className="spin" size={16} /><span>{busy ? 'Preparing repository…' : job?.progress}</span>{job && <button onClick={async () => { requestEpoch.current++; setJob(await api<Job>(`/jobs/${job.id}`, { method: 'DELETE' })); }}>Cancel analysis</button>}</div>}
-    {!summary ? <main className="welcome"><div className="welcome-grid" /><div className="welcome-content"><div className="eyebrow"><span className="status-dot" />A CLEARER PICTURE OF YOUR CODE</div><h1>From source code<br />to <em>understanding.</em></h1><p>Explore the objects, connections, and data paths inside a Python repository. Grounded in your source. Entirely local.</p><div className="welcome-actions"><button className="primary" disabled={running} onClick={() => fileInput.current?.click()}><FolderOpen size={17} />Open a Python folder</button><button className="secondary" disabled={running} onClick={() => void importExample('multi-module')}><Play size={15} />Explore the example</button></div><div className="welcome-note">No account. No API key. Your code is never executed.</div><div className="feature-grid"><article><Box size={22} /><h3>Object Inspector</h3><p>Classes, attributes, inheritance.<br />See how the pieces connect.</p></article><article><GitBranch size={22} /><h3>Static Flow Player</h3><p>Follow definitions and dependencies.<br />Explore each possible path.</p></article><article><Code2 size={22} /><h3>Source as truth</h3><p>Every symbol points to real code.<br />Uncertainty stays visible.</p></article></div></div><div className="welcome-footer">PYTHON 3.11+ <span>AST-BASED ANALYSIS</span> OPEN SOURCE</div></main> : <>
-      <nav className="modebar"><button className={view.mode === 'objects' ? 'mode active' : 'mode'} onClick={() => setView(v => ({ ...v, mode: 'objects' }))}><Box size={16} />Object Inspector</button><button className={view.mode === 'flow' ? 'mode active' : 'mode'} disabled={!view.flowId} onClick={() => setView(v => ({ ...v, mode: 'flow' }))}><GitBranch size={16} />Data Flow Player</button><div className="mode-spacer" /><span>{summary.files.length} files</span><span>{symbols.filter(s => s.kind === 'Class').length} classes</span><span>{Math.round(summary.metrics.total_ms)} ms analysis</span><a className="icon-link" title="Export analysis JSON" aria-label="Export analysis JSON" href={`${API}/api/repositories/${repo}/export`}><Download size={15} /></a></nav>
-      <div className="workbench"><aside className="explorer"><div className="panel-heading">EXPLORER <Layers3 size={13} /></div><label className="search"><Search size={14} /><input aria-label="Search symbols" placeholder="Find a symbol…" value={search} onChange={e => setSearch(e.target.value)} /><kbd>⌕</kbd></label><div className="file-tree"><div className="tree-root"><ChevronDown size={13} /><FolderOpen size={14} />{summary.repository.name}</div>{summary.files.map(file => <details key={file.path} open className="file-group"><summary><FileCode2 size={13} /><span onClick={() => setSourceOverride({ file: file.path, start_line: 1, end_line: 1, start_column: 0, end_column: 0 })}>{file.path}</span>{!file.parsed && <span className="error-text">!</span>}</summary>{selectedFileNodes(file.path).map(n => <button key={n.id} className={`tree-symbol ${view.selected === n.id ? 'selected' : ''} ${n.kind === 'Method' ? 'indented' : ''}`} title={n.qualified_name} onClick={() => select(n.id)}><span className={n.kind === 'Class' ? 'purple' : 'mint'}>{n.kind === 'Class' ? <Box size={13} /> : <Braces size={13} />}</span><span>{n.name}</span>{n.kind === 'Class' && <small>class</small>}</button>)}</details>)}</div><div className="explorer-bottom"><span className="status-dot" />Snapshot loaded locally<br /><small>{summary.repository.revision ? `Revision ${summary.repository.revision.slice(0, 12)}` : 'Content-addressed snapshot'}</small></div></aside>
-      <div className="resize-handle vertical left" onPointerDown={e => resize(e, 'left')} />
-      <section className="canvas-column"><div className="canvas-toolbar"><button title="Back" aria-label="Back" disabled={!history.length} onClick={back}><ArrowLeft size={15} /></button><span className="breadcrumb">{view.mode === 'flow' ? 'Static flow' : 'Repository'}<span>/</span><strong>{currentSymbol?.name || 'Overview'}</strong></span><div className="mode-spacer" />{view.mode === 'objects' && <button className={focus ? 'tool active' : 'tool'} onClick={() => setFocus(!focus)}><Network size={14} />Focus</button>}<button title="Reset layout" aria-label="Reset layout" onClick={() => setLayoutKey(k => k + 1)}><RotateCcw size={14} /></button><button title="Graph filters" aria-label="Graph filters" onClick={() => setSettings(!settings)}><Settings2 size={15} /></button></div>
-      {settings && <div className="filter-panel"><strong>Show nodes</strong>{[...allKinds, 'ExternalDependency', 'Unknown'].map(kind => <label key={kind}><input type="checkbox" checked={kinds.includes(kind)} onChange={() => setKinds(k => k.includes(kind) ? k.filter(v => v !== kind) : [...k, kind])} />{kind}</label>)}<strong>Relations</strong>{['CONTAINS', 'INHERITS', 'INSTANTIATES', 'CALLS', 'IMPORTS'].map(kind => <label key={kind}><input type="checkbox" checked={relations.includes(kind)} onChange={() => setRelations(r => r.includes(kind) ? r.filter(v => v !== kind) : [...r, kind])} />{kind.toLowerCase()}</label>)}</div>}
-      <div className="graph-area">{view.mode === 'flow' && flow ? <GraphCanvas flow={flow} symbols={symbols} selected={active?.id || null} visited={view.playback?.trail.slice(0, view.playback.index + 1)} onSelect={id => setPlayback({ trail: [id], index: 0 })} layoutKey={layoutKey} /> : <GraphCanvas graph={visibleGraph} symbols={symbols} selected={view.selected} onSelect={select} onRelation={r => { setRelation(r); setSourceOverride(r.provenance); }} layoutKey={layoutKey} />}
-      <div className="canvas-caption"><span>{view.mode === 'flow' ? 'CONTROL + DATA DEPENDENCIES' : 'ARCHITECTURE MAP'}</span><strong>{view.mode === 'flow' ? `${flow?.operations.length || 0} operations` : `${visibleGraph.nodes.length} of ${visibleGraph.total} symbols`}</strong></div>{view.mode === 'objects' && visibleGraph.nodes.length < visibleGraph.total && <button className="show-more secondary" onClick={() => setGraphLimit(n => n + 60)}>Show 60 more</button>}{view.mode === 'objects' && !visibleGraph.nodes.length && <div className="canvas-empty">No symbols match these filters.</div>}<div className="legend"><span><i className="legend-line mint-line" />{view.mode === 'flow' ? 'data (dashed)' : 'calls'}</span><span><i className="legend-line purple-line" />{view.mode === 'flow' ? 'control (solid)' : 'inherits'}</span>{view.mode === 'objects' && <span><i className="legend-line amber-line" />instantiates</span>}</div></div>
+    <header className="topbar"><div className="brand"><span className="brand-mark"><Activity size={21} /></span>CodeMotion<span className="version">LOCAL</span></div>{summary && <div className="repo-title"><GitBranch size={14} />{summary.repository.name}<span className="snapshot">{summary.repository.snapshot.slice(0, 7)}</span></div>}<div className="top-actions"><span className="privacy">Analyse statique · code non exécuté</span><button onClick={() => setSessionsOpen(true)}>Sessions</button>{repo && <button disabled={running} title="Recalculer l’analyse à partir des fichiers de ce snapshot" onClick={() => { setError(''); void post<Job>(`/repositories/${repo}/reanalyze`).then(setJob).catch(e => setError(errorText(e))); }}>Réanalyser</button>}{repo && <button onClick={() => setPalette(true)}>Rechercher <kbd>Ctrl K</kbd></button>}<button aria-label="Toggle color theme" onClick={() => setLight(!light)}>{light ? <Moon size={16} /> : <Sun size={16} />}</button><button className="secondary" onClick={() => setImportOpen(true)}><Upload size={14} />Import repository</button></div></header>
+    {error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => { setError(''); setRetry(n => n + 1); }}>Réessayer</button><button aria-label="Dismiss error" onClick={() => setError('')}><X size={15} /></button></div>}
+    {running && <div className="progress-banner" role="status"><span>{busy ? 'Préparation du projet…' : job?.progress}</span>{job && <button onClick={() => { void api<Job>(`/jobs/${job.id}`, { method: 'DELETE' }).then(setJob).catch(e => setError(errorText(e))); }}>Annuler l’analyse</button>}</div>}
+    {!summary ? <main className="welcome"><div className="welcome-grid" /><div className="welcome-content"><div className="eyebrow">COMPRENDRE LE CODE, VOIR SES LIENS</div><h1>Du code source<br />à la <em>compréhension.</em></h1><p>Explorez les objets, les dépendances et les parcours de données d’un projet Python. Chaque résultat remonte au code source. Entièrement local.</p><div className="welcome-actions"><button className="primary" disabled={running} onClick={() => fileInput.current?.click()}><FolderOpen size={17} />Open a Python folder</button><button className="secondary" disabled={running} onClick={() => void importExample('multi-module')}><Play size={15} />Explore the example</button></div><div className="welcome-note">Sans compte ni clé API. Aucun code importé n’est exécuté.</div><div className="feature-grid"><article><Box size={22} /><h3>Object Inspector</h3><p>Classes, attributs et architecture.</p></article><article><GitBranch size={22} /><h3>Static Flow Player</h3><p>Définitions et parcours hypothétiques.</p></article><article><Code2 size={22} /><h3>Le code comme preuve</h3><p>Références, impact et limites explicites.</p></article></div></div></main> : <>
+      <nav className="modebar"><button className={view.mode === 'objects' ? 'mode active' : 'mode'} onClick={() => setView(v => ({ ...v, mode: 'objects' }))}><Box size={16} />Object Inspector</button><button className={view.mode === 'flow' ? 'mode active' : 'mode'} disabled={!canOpenFlow} title={canOpenFlow ? 'Open the selected function or method' : 'Select a function or method in the explorer or inspector first'} onClick={() => { if (view.selected === view.flowId && view.playback) setView(v => ({ ...v, mode: 'flow' })); else if (view.selected) void openFlow(view.selected); }}><GitBranch size={16} />Data Flow Player</button><span className="flow-hint">{!canOpenFlow ? 'Select a function or method to explore its flow' : ''}</span><div className="mode-spacer" /><select aria-label="Disposition des panneaux" defaultValue="explore" onChange={e => { setPanels(e.target.value === 'read' ? { explorer: false, inspector: false, source: true } : e.target.value === 'flow' ? { explorer: false, inspector: true, source: true } : { explorer: true, inspector: true, source: true }); if (e.target.value === 'read') setSourceHeight(500); }}><option value="explore">Exploration</option><option value="flow">Lecture du flux</option><option value="read">Lecture du code</option></select>{(['explorer','inspector','source'] as const).map(p => <button key={p} aria-pressed={panels[p]} onClick={() => setPanels(v => window.matchMedia('(max-width:850px)').matches && p !== 'source' ? { ...v, explorer: p === 'explorer' && !v.explorer, inspector: p === 'inspector' && !v.inspector } : { ...v, [p]: !v[p] })}>{p === 'explorer' ? 'Arbre' : p === 'inspector' ? 'Détails' : 'Code'}</button>)}</nav>
+      <div className="workbench"><aside className="explorer"><div className="panel-heading">EXPLORATEUR <span>{summary.files.length} fichiers</span><button className="drawer-close" aria-label="Fermer l’arbre" onClick={() => setPanels(p => ({ ...p, explorer: false }))}>×</button></div><Explorer files={summary.files} symbols={symbols} selected={view.selected} onSelect={select} onFile={file => setSourceOverride(locationAt(file))} search={search} onSearch={setSearch} expanded={expanded} onExpanded={setExpanded} />{favorites.length > 0 && <div className="favorites"><strong>Favoris</strong>{favorites.map(id => <button key={id} onClick={() => select(id)}>{symbols.find(n => n.id === id)?.qualified_name || 'Symbole absent'}</button>)}</div>}<div className="explorer-bottom"><span className="status-dot" />Snapshot local<br /><small>{summary.repository.revision?.slice(0, 12) || summary.repository.snapshot.slice(0, 12)}</small></div></aside>
+      <div className="resize-handle vertical left" role="separator" aria-label="Largeur explorateur" aria-orientation="vertical" aria-valuenow={explorerWidth} tabIndex={0} onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setExplorerWidth(w => Math.max(185, Math.min(430, w + (e.key === 'ArrowRight' ? 20 : -20)))); }} onPointerDown={e => resize(e, 'left')} />
+      <section className="canvas-column"><div className="canvas-toolbar"><button aria-label="Back" disabled={!history.length} onClick={back}>←</button><button aria-label="Forward" disabled={!future.length} onClick={forward}>→</button><span className="breadcrumb"><button onClick={overview}>Projet</button>{hierarchy && <button onClick={() => setHierarchy(hierarchy.split('/').slice(0,-1).join('/'))}>{hierarchy} ↑</button>}{currentSymbol?.parent && <button onClick={() => select(currentSymbol.parent!)}>{findName(currentSymbol.parent)}</button>}<strong>{currentSymbol?.name || 'Vue d’ensemble'}</strong></span><div className="mode-spacer" />{view.mode === 'objects' && <button aria-pressed={focus} onClick={() => { setFocus(!focus); setHierarchy(null); }}>Focus</button>}<button aria-label="Reset layout" onClick={() => { setCanvases(c => { const n = { ...c }; delete n[canvasKey]; return n; }); setLayoutKey(k => k + 1); }}>Réorganiser</button><button aria-label="Graph filters" aria-expanded={settings} onClick={() => setSettings(!settings)}>Filtres</button></div>
+      <div className="explore-controls"><button onClick={overview}>Vue d’ensemble</button><button aria-pressed={options.follow} onClick={() => setOptions(o => ({ ...o, follow: !o.follow }))}>Suivre la sélection</button><select aria-label="Disposition du graphe" value={options.orientation} onChange={e => { setOptions(o => ({ ...o, orientation: e.target.value as 'TB' | 'LR' })); setCanvases(c => { const n = { ...c }; delete n[canvasKey]; return n; }); setLayoutKey(k => k + 1); }}><option value="TB">Verticale</option><option value="LR">Horizontale</option></select>{view.mode === 'flow' ? <><select aria-label="Liens du flux" value={options.edgeMode} onChange={e => setOptions(o => ({ ...o, edgeMode: e.target.value as GraphOptions['edgeMode'] }))}><option value="control">Contrôle</option><option value="data">Données</option><option value="both">Contrôle + données</option></select><select aria-label="Filtrer par variable" value={options.variable} onChange={e => setOptions(o => ({ ...o, variable: e.target.value }))}><option value="">Toutes les variables</option>{[...new Set(flow?.operations.flatMap(o => [...o.reads, ...o.writes]))].sort().map(n => <option key={n}>{n}</option>)}</select><label><input type="checkbox" checked={options.hideSelf} onChange={e => setOptions(o => ({ ...o, hideSelf: e.target.checked }))} />Masquer self</label>{stack.length > 0 && <button onClick={() => { setView(stack.at(-1)!); setStack(s => s.slice(0, -1)); setInspected(null); setSourceOverride(null); }}>Retour à l’appelant ({stack.length})</button>}</> : <><select aria-label="Direction du voisinage" value={direction} onChange={e => { setDirection(e.target.value); setFocus(true); setHierarchy(null); }}><option value="both">Entrants et sortants</option><option value="in">Entrants</option><option value="out">Sortants</option></select><label>Profondeur <input type="number" min={1} max={8} value={depth} onChange={e => setDepth(Math.max(1, Math.min(8, Number(e.target.value) || 1)))} /></label></>}<button onClick={() => setMaximized(m => m === 'graph' ? '' : 'graph')}>{maximized === 'graph' ? 'Restaurer les panneaux' : 'Plein graphe'}</button><button onClick={() => setExportOpen(true)}>Exporter</button><button onClick={architecture}>Architecture</button></div>
+      {settings && <div className="filter-panel"><strong>Nœuds</strong>{['Class','Function','Method','Module','ExternalDependency','Unknown'].map(k => <label key={k}><input type="checkbox" checked={kinds.includes(k)} onChange={() => setKinds(v => v.includes(k) ? v.filter(x => x !== k) : [...v, k])} />{k}</label>)}<strong>Relations</strong>{['CONTAINS','INHERITS','INSTANTIATES','CALLS','IMPORTS'].map(k => <label key={k}><input type="checkbox" checked={relations.includes(k)} onChange={() => setRelations(v => v.includes(k) ? v.filter(x => x !== k) : [...v, k])} />{k.toLowerCase()}</label>)}<strong>Seuils diagnostics</strong>{(['lines','members','connections'] as const).map(k => <label key={k}>{k}<input type="number" min={1} max={10000} value={thresholds[k]} onChange={e => setThresholds(t => ({ ...t, [k]: Math.max(1, Math.min(10000, Number(e.target.value) || 1)) }))} /></label>)}<label>Chemin vers<select value={pathTarget} onChange={e => setPathTarget(e.target.value)}><option value="">Choisir la cible</option>{symbols.filter(n => ['Class','Function','Method','Module'].includes(n.kind)).map(n => <option key={n.id} value={n.id}>{n.qualified_name}</option>)}</select></label><button disabled={!pathTarget || !view.selected} onClick={() => showInsight('Chemins statiques — profondeur 8, 20 résultats', `/paths?start=${view.selected}&target=${pathTarget}&depth=8&limit=20`)}>Trouver les chemins</button></div>}
+      <div className="graph-area">{graphBusy && view.mode === 'objects' && <div className="graph-loading" role="status">Chargement du voisinage…</div>}{view.mode === 'flow' && flow ? <GraphCanvas key={canvasKey + layoutKey} {...canvasProps} flow={flow} selected={active?.id || null} visited={view.playback?.trail.slice(0, view.playback.index + 1)} onSelect={id => { setInspected(id); setSourceOverride(null); }} /> : <GraphCanvas key={canvasKey + layoutKey} {...canvasProps} graph={visibleGraph} selected={view.selected} onSelect={id => { const n = graph.nodes.find(n => n.id === id); if (n?.kind === 'Directory') setHierarchy(n.metadata.path || ''); else { select(id); setFocus(true); } }} onRelation={r => { if (r.kind === 'GROUPED') showInsight('Relations agrégées', `/group-relations?source=${encodeURIComponent(graph.nodes.find(n => n.id === r.source)?.metadata.path || '')}&target=${encodeURIComponent(graph.nodes.find(n => n.id === r.target)?.metadata.path || '')}`); else { setRelation(r); setSourceOverride(r.provenance); } }} />}
+      <div className="canvas-caption"><span>{view.mode === 'flow' ? `FLUX · ${options.edgeMode.toUpperCase()}` : 'ARCHITECTURE MAP'}</span><strong>{view.mode === 'flow' ? `${flow?.operations.length || 0} opérations` : `${visibleGraph.nodes.length} / ${visibleGraph.total} symboles · ${visibleGraph.edges.length} liens${visibleGraph.truncated ? ' · vue partielle' : ''}`}</strong></div>{view.mode === 'objects' && graph.next_offset != null && <button className="show-more secondary" disabled={graphLimit >= 1000} onClick={() => setGraphLimit(n => Math.min(1000, n + 60))}>Afficher 60 de plus (max. 1 000)</button>}{view.mode === 'objects' && !visibleGraph.nodes.length && !graphBusy && <div className="canvas-empty">Aucun symbole dans cette vue. Ajustez les filtres ou revenez à la vue d’ensemble.</div>}<div className="legend"><span><i className="legend-line mint-line" />{view.mode === 'flow' ? 'données (pointillés)' : 'appels'}</span><span><i className="legend-line purple-line" />{view.mode === 'flow' ? 'contrôle · parcours en or' : 'héritage'}</span></div></div>
       {view.mode === 'flow' && flow && view.playback && <Player flow={flow} playback={view.playback} onChange={setPlayback} />}</section>
-      <div className="resize-handle vertical right" onPointerDown={e => resize(e, 'right')} />
-      <aside className="inspector"><div className="panel-heading">{view.mode === 'flow' ? 'OPERATION INSPECTOR' : 'SYMBOL INSPECTOR'}<Box size={13} /></div>{relation ? <div className="inspector-content"><span className={`badge ${relation.resolution}`}>{relation.resolution}</span><h2>{relation.kind}</h2><p>{findName(relation.source)} → {findName(relation.target)}</p><p>{relation.provenance?.file}:{relation.provenance?.start_line}</p><button className="secondary" onClick={() => { setRelation(null); select(relation.target); }}>Inspect target <ArrowUpRight size={13} /></button></div> : view.mode === 'flow' && active ? <div className="inspector-content"><span className="badge">{active.kind}</span><h2 className="operation-title">{active.expression}</h2><p>{active.explanation}</p><div className="source-ref"><FileCode2 size={13} />{active.source.file}:{active.source.start_line}</div>{flow?.limitations.map((l, i) => <p className="notice" key={i}>{l}</p>)}<h4>INPUTS & OUTPUTS</h4><div className="metadata-row"><span>Reads</span><code>{active.reads.join(', ') || '—'}</code></div><div className="metadata-row"><span>Writes</span><code>{active.writes.join(', ') || '—'}</code></div><h4>SYMBOLIC VARIABLES <span>{variables.length}</span></h4>{variables.map(([name, value]) => <div className="variable" key={name}><strong>{name}</strong><small>{value.version}</small><code>{value.expression}</code><p>{value.literal !== null ? `Literal at definition: ${value.literal}` : 'Runtime value unavailable'}</p></div>)}{calls.length > 0 && <h4>CALLS IN THIS OPERATION</h4>}{calls.map(call => <div className="call-item" key={call.id}><strong>{call.metadata.expression}</strong><span className={`badge ${call.metadata.resolution}`}>{call.metadata.resolution}</span>{call.metadata.targets?.map(target => <div className="call-actions" key={target}><button onClick={() => select(target)}>Inspect {findName(target)}</button>{symbols.some(s => s.id === target && ['Function', 'Method'].includes(s.kind)) && <button onClick={() => void openFlow(target)}>Enter flow <ArrowUpRight size={12} /></button>}</div>)}</div>)}<button className="secondary full-width" onClick={() => select(view.selected!)}><Box size={14} />Inspect Object / Function</button></div> : details ? <div className="inspector-content"><div className="inspector-icon">{details.symbol.kind === 'Class' ? <Box size={23} /> : <Braces size={23} />}</div><span className="badge">{details.symbol.kind}{details.symbol.metadata.dataclass ? ' · dataclass' : ''}</span><h2>{details.symbol.name}</h2><div className="qualified">{details.symbol.qualified_name}</div><p>{details.symbol.docstring || 'No docstring declared.'}</p>{details.symbol.source && <div className="source-ref"><FileCode2 size={13} />{details.symbol.source.file}:{details.symbol.source.start_line}</div>}{details.symbol.signature && <code className="signature">{details.symbol.signature}</code>}{details.symbol.metadata.decorators?.length ? <p className="decorators">{details.symbol.metadata.decorators.map(d => `@${d}`).join(' ')}</p> : null}{['Function', 'Method'].includes(details.symbol.kind) && <button className="primary full-width" onClick={() => void openFlow(details.symbol.id)}><GitBranch size={15} />Explore Data Flow<ArrowUpRight size={14} /></button>}
-      {details.symbol.metadata.bases?.length ? <><h4>INHERITS FROM</h4><p>{details.symbol.metadata.bases.join(', ')}</p></> : null}
-      <h4>ATTRIBUTES <span>{attributes.length}</span></h4>{attributes.length ? attributes.map(a => <button className="attribute-row" key={a.id} onClick={() => { setSourceOverride(a.source); }}><span><i>a</i><strong>{a.name}</strong><small>{a.metadata.storage} {a.metadata.annotation ? `· ${a.metadata.annotation}` : ''}</small></span><code>{a.metadata.literal ?? a.metadata.expression ?? 'unknown'}</code></button>) : <p className="muted">No attributes declared in this scope.</p>}
-      <h4>{details.symbol.kind === 'Module' ? 'DEFINITIONS' : 'METHODS'} <span>{methods.length}</span></h4>{methods.map(m => <button className="method-row" key={m.id} onClick={() => select(m.id)}><Braces size={13} /><span><strong>{m.name}</strong><small>{m.signature}</small></span><ArrowUpRight size={13} /></button>)}
-      {details.children.some(c => c.kind === 'Parameter') && <><h4>PARAMETERS</h4>{details.children.filter(c => c.kind === 'Parameter').map(c => <div className="metadata-row" key={c.id}><strong>{c.name}</strong><code>{c.metadata.annotation || 'unannotated'}</code></div>)}</>}
-      <h4>RELATIONSHIPS</h4>{details.relations.filter(r => r.kind !== 'CONTAINS').slice(0, 25).map(r => <button className="relation-row" key={r.id} onClick={() => { setRelation(r); setSourceOverride(r.provenance); }}><span>{r.kind.toLowerCase()} <strong>{findName(r.source === view.selected ? r.target : r.source)}</strong></span><small className={r.resolution}>{r.resolution}</small></button>)}{!details.relations.some(r => r.kind !== 'CONTAINS') && <p className="muted">No direct relations identified.</p>}</div> : <div className="empty-small">Select a symbol to inspect its source.</div>}</aside></div>
-      <section className="source-panel"><div className="resize-handle horizontal" onPointerDown={e => resize(e, 'bottom')} /><div className="source-toolbar"><Code2 size={14} /><strong>SOURCE</strong><span>{sourceLocation?.file || 'Select a symbol'}</span><div className="mode-spacer" />{sourceLocation && <small>Lines {sourceLocation.start_line}–{sourceLocation.end_line}</small>}<span className="readonly"><Check size={11} />Read only</span></div><div className="source-editor"><SourceEditor source={source} location={sourceLocation} symbols={symbols} onSelect={select} light={light} /></div></section>
-      <footer className="statusbar"><span><span className="status-dot" />Analysis ready</span><span>Python · AST</span><span className="mode-spacer" /><button onClick={() => setDiagnostics(!diagnostics)}>{summary.diagnostics.filter(d => d.severity !== 'info').length} warnings · Analysis notes</button><span>CodeMotion 0.1</span></footer>
-      {diagnostics && <div className="diagnostic-panel"><div className="panel-heading">ANALYSIS NOTES<button aria-label="Close analysis notes" onClick={() => setDiagnostics(false)}><X size={14} /></button></div>{summary.diagnostics.map((d, i) => <article key={i}><span className="badge">{d.code}</span><p>{d.message}</p>{d.source && <button onClick={() => setSourceOverride(d.source)}>{d.source.file}:{d.source.start_line}</button>}</article>)}</div>}
+      <div className="resize-handle vertical right" role="separator" aria-label="Largeur inspecteur" aria-orientation="vertical" aria-valuenow={inspectorWidth} tabIndex={0} onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setInspectorWidth(w => Math.max(250, Math.min(520, w + (e.key === 'ArrowLeft' ? 20 : -20)))); }} onPointerDown={e => resize(e, 'right')} />
+      <aside className="inspector"><div className="panel-heading">{view.mode === 'flow' ? 'OPERATION INSPECTOR' : 'SYMBOL INSPECTOR'}<button className="drawer-close" aria-label="Fermer les détails" onClick={() => setPanels(p => ({ ...p, inspector: false }))}>×</button><Box size={13} /></div>{relation ? <div className="inspector-content"><span className={`badge ${relation.resolution}`}>{relation.resolution}</span><h2>{relation.kind}</h2><p>{findName(relation.source)} → {findName(relation.target)}</p><p>{relation.provenance?.file}:{relation.provenance?.start_line}</p><button onClick={() => { select(relation.target); setRelation(null); }}>Inspecter la cible</button></div> : view.mode === 'flow' && active ? <div className="inspector-content"><span className="badge">{active.kind}</span>{inspected && inspected !== playingOp?.id && <p className="notice">Inspection libre ; parcours à l’étape {(view.playback?.index || 0) + 1}.<button onClick={() => setInspected(null)}>Revenir à l’étape active</button></p>}<h2 className="operation-title">{active.expression}</h2><p>{active.explanation}</p><div className="source-ref"><FileCode2 size={13} />{active.source.file}:{active.source.start_line}</div><details><summary>Limites de ce flux</summary>{flow?.limitations.map((l, i) => <p className="notice" key={i}>{l}</p>)}</details><h4>INPUTS & OUTPUTS</h4><div className="metadata-row"><span>Lectures</span><span>{active.reads.map(n => <button key={n} onClick={() => trackVariable(view.flowId!, n)}>{n}</button>)}</span></div><div className="metadata-row"><span>Écritures</span><span>{active.writes.map(n => <button key={n} onClick={() => trackVariable(view.flowId!, n)}>{n}</button>)}</span></div><h4>SYMBOLIC VARIABLES <span>{variables.length}</span></h4><p className="muted">Définitions sur le parcours choisi. Aucune valeur runtime calculée.</p>{variables.map(([name, value]) => <div className="variable" key={name}><button onClick={() => trackVariable(view.flowId!, name)}><strong>{name}</strong></button><code>{value.expression}</code><p>{value.literal !== null ? `Littéral à la définition : ${value.literal}` : 'Valeur runtime indisponible'}</p></div>)}{calls.length > 0 && <h4>APPELS DE CETTE OPÉRATION</h4>}{calls.map(call => <div className="call-item" key={call.id}><strong>{call.metadata.expression}</strong><span className={`badge ${call.metadata.resolution}`}>{call.metadata.resolution}</span>{call.metadata.targets?.map(target => <div className="call-actions" key={target}><button onClick={() => select(target)}>Inspect {findName(target)}</button>{symbols.some(s => s.id === target && ['Function','Method'].includes(s.kind)) && <button onClick={() => void openFlow(target)}>Enter flow <ArrowUpRight size={12} /></button>}</div>)}</div>)}<button className="secondary full-width" onClick={() => select(view.selected!)}><Box size={14} />Inspect Object / Function</button></div> : details ? <div className="inspector-content"><div className="inspector-icon">{details.symbol.kind === 'Class' ? <Box size={23} /> : <Braces size={23} />}</div><span className="badge">{details.symbol.kind}{details.symbol.metadata.dataclass ? ' · dataclass' : ''}</span><h2>{details.symbol.name}</h2><div className="qualified">{details.symbol.qualified_name}</div>{details.symbol.docstring && <p>{details.symbol.docstring}</p>}{details.symbol.source && <button className="source-ref" onClick={() => setSourceOverride(details.symbol.source)}><FileCode2 size={13} />{details.symbol.source.file}:{details.symbol.source.start_line}</button>}{details.symbol.signature && <code className="signature">{details.symbol.signature}</code>}<div className="inspector-actions"><button aria-pressed={favorites.includes(details.symbol.id)} onClick={() => setFavorites(f => f.includes(details.symbol.id) ? f.filter(id => id !== details.symbol.id) : [...f, details.symbol.id])}>{favorites.includes(details.symbol.id) ? '★ Retirer' : '☆ Favori'}</button><button onClick={() => showInsight('Impact et appelants', `/impact/${details.symbol.id}?depth=${depth}&limit=200`)}>Impact et appelants</button><button onClick={() => { setHierarchy(null); setDirection('out'); setFocus(true); }}>Appelés / dépendances</button><button onClick={() => showInsight('Références', `/references/${details.symbol.id}?limit=200`)}>Références</button></div>{details.symbol.metadata.decorators?.length ? <p className="decorators">{details.symbol.metadata.decorators.map(d => `@${d}`).join(' ')}</p> : null}{canOpenFlow && <button className="primary full-width" onClick={() => void openFlow(details.symbol.id)}><GitBranch size={15} />Explore Data Flow<ArrowUpRight size={14} /></button>}
+      {details.symbol.metadata.returns && <><h4>RETOUR ANNOTÉ</h4><code>{details.symbol.metadata.returns}</code></>}{details.symbol.metadata.bases?.length ? <><h4>HÉRITAGE</h4><p>{details.symbol.metadata.bases.join(', ')}</p></> : null}{attributes.length > 0 && <h4>ATTRIBUTS ({attributes.length})</h4>}{attributes.map(a => <button className="attribute-row" key={a.id} onClick={() => setSourceOverride(a.source)}><span><strong>{a.name}</strong><small>{a.metadata.annotation}</small></span><code>{a.metadata.literal ?? a.metadata.expression ?? 'inconnu'}</code></button>)}{methods.length > 0 && <h4>MÉTHODES / DÉFINITIONS ({methods.length})</h4>}{methods.map(m => <button className="method-row" key={m.id} onClick={() => select(m.id)}><Braces size={13} /><span><strong>{m.name}</strong><small>{m.signature}</small></span><ArrowUpRight size={13} /></button>)}{details.children.some(c => c.kind === 'Parameter') && <><h4>PARAMÈTRES</h4>{details.children.filter(c => c.kind === 'Parameter').map(c => <div className="metadata-row" key={c.id}><strong>{c.name}</strong><code>{c.metadata.annotation || 'sans annotation'}</code></div>)}</>}{details.relations.some(r => r.kind !== 'CONTAINS') && <h4>RELATIONS DIRECTES</h4>}{details.relations.filter(r => r.kind !== 'CONTAINS').slice(0, 25).map(r => <button className="relation-row" key={r.id} onClick={() => { setRelation(r); setSourceOverride(r.provenance); }}><span>{r.kind.toLowerCase()} <strong>{findName(r.source === view.selected ? r.target : r.source)}</strong></span><small className={r.resolution}>{r.resolution}</small></button>)}{details.relations.filter(r => r.kind !== 'CONTAINS').length > 25 && <p>25 relations affichées. Explorez le voisinage pour les autres.</p>}</div> : <div className="empty-small">Sélectionnez un symbole.</div>}</aside></div>
+      <section className="source-panel"><div className="resize-handle horizontal" role="separator" aria-label="Hauteur du code" aria-orientation="horizontal" aria-valuenow={sourceHeight} tabIndex={0} onKeyDown={e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') setSourceHeight(h => Math.max(120, Math.min(550, h + (e.key === 'ArrowUp' ? 20 : -20)))); }} onPointerDown={e => resize(e, 'bottom')} /><div className="source-toolbar"><Code2 size={14} /><strong>SOURCE</strong><button onClick={() => setMaximized(m => m === 'source' ? '' : 'source')}>{maximized === 'source' ? 'Restaurer' : 'Agrandir le code'}</button><span>{sourceLocation?.file || 'Sélectionnez un symbole'}</span><div className="mode-spacer" />{sourceLocation && <small>Lignes {sourceLocation.start_line}–{sourceLocation.end_line}</small>}<span className="readonly">Lecture seule</span></div><div className="source-editor"><SourceEditor source={source} location={sourceLocation} symbols={symbols} onSelect={select} light={light} onToken={(file, line, column) => showInsight('Navigation source', `/semantic?file=${encodeURIComponent(file)}&line=${line}&column=${column}`)} /></div></section>
+      <footer className="statusbar"><span><span className="status-dot" />Analyse statique prête · {Math.round(summary.metrics.total_ms)} ms</span><span className="mode-spacer" /><button onClick={() => setDiagnostics(!diagnostics)}>{summary.diagnostics.filter(d => d.severity !== 'info').length} avertissements · Notes</button><span>CodeMotion</span></footer>
+      {diagnostics && <Dialog title="Notes d’analyse" onClose={() => setDiagnostics(false)}><div className="insights">{summary.diagnostics.map((d, i) => <article key={i}><span className="badge">{d.code}</span><p>{d.message}</p>{d.source && <button onClick={() => { setSourceOverride(d.source); setDiagnostics(false); }}>{d.source.file}:{d.source.start_line}</button>}</article>)}</div></Dialog>}
     </>}
-    {importOpen && <div className="modal-backdrop" onClick={() => setImportOpen(false)}><section role="dialog" aria-modal="true" aria-label="Import repository" className="import-modal" onClick={e => e.stopPropagation()}><button className="modal-close" aria-label="Close import" onClick={() => setImportOpen(false)}><X size={18} /></button><span className="eyebrow">BRING YOUR CODE</span><h2>Import a repository</h2><p>Python files are parsed locally. No scripts, hooks, or dependencies from the repository are executed.</p><button disabled={running} className="folder-drop" onClick={() => fileInput.current?.click()}><FolderOpen size={26} /><strong>Choose a local folder</strong><small>.py files and .gitignore · up to 20 MB</small></button><div className="divider">or a public GitHub repository</div><form onSubmit={e => { e.preventDefault(); void importGithub(); }}><label className="github-input"><GitBranch size={17} /><input aria-label="GitHub repository URL" placeholder="https://github.com/owner/repository" value={github} onChange={e => setGithub(e.target.value)} required /></label><button disabled={running} className="primary full-width" type="submit">Analyze repository <ArrowUpRight size={15} /></button></form><div className="divider">try a working example</div><div className="example-buttons">{['basic-functions', 'object-oriented', 'branching', 'loops', 'multi-module'].map(name => <button disabled={running} key={name} onClick={() => void importExample(name)}>{name.replaceAll('-', ' ')}</button>)}</div></section></div>}
+    {palette && repo && <Palette repo={repo} onSelect={select} onSource={setSourceOverride} onClose={() => setPalette(false)} onCommand={c => { if (c === 'Architecture') architecture(); if (c === 'Sessions') setSessionsOpen(true); if (c === 'Exporter') setExportOpen(true); if (c === 'Vue d’ensemble') overview(); }} />}
+    {insight && <Insights title={insight.title} path={insight.path} onClose={() => setInsight(null)} onSelect={select} onSource={s => { setSourceOverride(s); setInsight(null); }} onFlow={id => void openFlow(id)} onVariable={trackVariable} />}
+    {sessionsOpen && <Sessions current={repo} onClose={() => setSessionsOpen(false)} onRestore={s => void restore(s)} onOpen={id => { void loadRepository(id).then(() => setSessionsOpen(false)).catch(e => setError(errorText(e))); }} onCompare={id => { setSessionsOpen(false); showInsight('Comparaison de snapshots', `/compare/${id}`); }} onSave={save} />}
+    {exportOpen && summary && <Dialog title="Exporter la vue" onClose={() => setExportOpen(false)}><div className="insights"><p>Export local du graphe affiché : snapshot, filtres, périmètre et limites inclus. Les images reprennent les positions dans une présentation simplifiée et incluent les expressions du code source. Le Markdown du lecteur exporte les étapes et décisions du parcours choisi.</p><label><input type="checkbox" checked={selectionOnly} onChange={e => setSelectionOnly(e.target.checked)} />Uniquement le nœud sélectionné</label><label>Lien direct local<input aria-label="Lien direct local" readOnly value={directLink} onFocus={e => e.target.select()} /></label><p>Ce lien contient la sélection et le parcours ; son ouverture nécessite le snapshot sur ce PC.</p><div className="export-formats">{['png','svg','json','markdown','mermaid'].map(format => <button key={format} onClick={() => { void exportView(format, summary, visibleGraph, view.mode === 'flow' ? flow : null, { ...options, light }, canvases[canvasKey], view.mode === 'flow' ? active?.id : view.selected, selectionOnly, view.playback, currentSymbol?.qualified_name).catch(e => setError(errorText(e))); }}>{format.toUpperCase()}</button>)}</div></div></Dialog>}
+    {importOpen && <Dialog title="Import repository" onClose={() => setImportOpen(false)}><section className="import-modal"><span className="eyebrow">VOTRE CODE, EN LOCAL</span><h2>Importer un projet</h2><p>Les fichiers Python sont analysés sans exécuter de scripts, hooks ou dépendances.</p><button disabled={running} className="folder-drop" onClick={() => fileInput.current?.click()}><FolderOpen size={26} /><strong>Choisir un dossier local</strong><small>.py et .gitignore · jusqu’à 20 Mo</small></button><div className="divider">ou un dépôt GitHub public</div><form onSubmit={e => { e.preventDefault(); void importGithub(); }}><label className="github-input"><GitBranch size={17} /><input aria-label="GitHub repository URL" placeholder="https://github.com/owner/repository" value={github} onChange={e => setGithub(e.target.value)} required /></label><label>Branche, tag ou SHA (facultatif)<input value={githubRef} maxLength={200} onChange={e => setGithubRef(e.target.value)} placeholder="main, v1.0, SHA…" /></label><button disabled={running} className="primary full-width" type="submit">Analyser le projet</button></form><div className="divider">exemples intégrés</div><div className="example-buttons">{['basic-functions','object-oriented','branching','loops','multi-module'].map(name => <button disabled={running} key={name} onClick={() => void importExample(name)}>{name.replaceAll('-', ' ')}</button>)}</div></section></Dialog>}
   </div>;
 }
-
-
-

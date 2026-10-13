@@ -1,0 +1,16 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
+import { readSessions, removeSession, renameSession, type StoredSession } from '@/lib/session';
+import Dialog from './Dialog';
+type Snapshot = { repository: { id: string; name: string; snapshot: string; revision: string | null }; bytes: number; engine_version: string };
+export default function Sessions({ current, onClose, onRestore, onOpen, onCompare, onSave }: { current?: string; onClose: () => void; onRestore: (s: StoredSession) => void; onOpen: (id: string) => void; onCompare: (id: string) => void; onSave: (title: string) => void }) {
+  const [sessions, setSessions] = useState<StoredSession[]>([]), [snapshots, setSnapshots] = useState<Snapshot[]>([]), [title, setTitle] = useState('Mon parcours'), [error, setError] = useState(''), [remove, setRemove] = useState<string | null>(null), [budget, setBudget] = useState('');
+  const reload = () => { setSessions(readSessions()); api<{ items: Snapshot[]; budget_bytes: number; used_bytes: number }>('/snapshots').then(r => { setSnapshots(r.items); setBudget(`${(r.used_bytes / 1e6).toFixed(1)} / ${r.budget_bytes / 1e6} Mo`); }).catch(e => setError(String(e))); };
+  useEffect(reload, []);
+  return <Dialog title="Sessions et snapshots locaux" onClose={onClose}><div className="insights">
+    {error && <p role="alert">{error}</p>}{current && <form onSubmit={e => { e.preventDefault(); onSave(title); reload(); }}><label>Nom du parcours<input value={title} maxLength={120} required onChange={e => setTitle(e.target.value)} /></label><button className="primary">Enregistrer la session</button></form>}
+    <h3>Parcours enregistrés</h3>{!sessions.length && <p>Aucune session enregistrée.</p>}{sessions.map(s => <article key={s.repository + s.title}><input aria-label="Renommer la session" defaultValue={s.title} maxLength={120} onBlur={e => { renameSession(s.repository, s.title, e.target.value); setSessions(readSessions()); }} /><small>{new Date(s.savedAt).toLocaleString()} · {s.snapshot.slice(0, 7)}</small><button onClick={() => onRestore(s)}>Restaurer</button><button onClick={() => { removeSession(s.repository, s.title); setSessions(readSessions()); }}>Supprimer la session</button></article>)}
+    <h3>Snapshots récents · {budget}</h3><p>Stockage local borné. Le plus ancien snapshot est évincé lorsque le budget est dépassé. Les sessions conservent leurs métadonnées mais nécessitent leur snapshot.</p>{snapshots.map(s => <article key={s.repository.id}><strong>{s.repository.name}</strong><p>{s.repository.revision?.slice(0, 12) || s.repository.snapshot.slice(0, 7)} · {(s.bytes / 1e6).toFixed(1)} Mo · moteur {s.engine_version}</p><button onClick={() => onOpen(s.repository.id)}>Ouvrir</button>{current && current !== s.repository.id && <button onClick={() => onCompare(s.repository.id)}>Comparer au snapshot actif</button>}<button onClick={() => setRemove(s.repository.id)}>Supprimer du disque</button>{remove === s.repository.id && <p>Les parcours de ce snapshot ne pourront plus être restaurés.<button onClick={async () => { try { await api(`/snapshots/${s.repository.id}`, { method: 'DELETE' }); setRemove(null); reload(); } catch (e) { setError(String(e)); } }}>Confirmer la suppression</button><button onClick={() => setRemove(null)}>Annuler</button></p>}</article>)}
+  </div></Dialog>;
+}

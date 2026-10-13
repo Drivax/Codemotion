@@ -1,0 +1,83 @@
+{
+  "repository": {
+    "id": "8e409ee6ccd42af6faf8dbd6",
+    "name": "Dynamic-Credit-Limit-Optimization-with-RL-",
+    "revision": null,
+    "snapshot": "8e409ee6ccd42af6faf8dbd68a89817e56918c90423afee18d5326f1a81685c5"
+  },
+  "engine": "2.0",
+  "metrics": {
+    "discovery_ms": 27.650299947708845,
+    "parsing_ms": 697.3510999232531,
+    "resolution_ms": 894.8572999797761,
+    "graphs_ms": 11398.655800148845,
+    "total_ms": 13018.514499999583,
+    "nodes": 34994.0,
+    "edges": 103224.0
+  },
+  "import_seconds": 19.760890000034124,
+  "files": 123,
+  "queries": {
+    "hierarchy": {
+      "ms": 125.04200031980872,
+      "bytes": 7648
+    },
+    "step_search": {
+      "ms": 30.320999678224325,
+      "bytes": 594
+    },
+    "architecture": {
+      "ms": 66.46449957042933,
+      "bytes": 424988
+    },
+    "flow": {
+      "ms": 4.652000032365322,
+      "bytes": 34078
+    },
+    "neighborhood": {
+      "ms": 8.657400030642748,
+      "bytes": 22009
+    },
+    "variable": {
+      "ms": 26.27400029450655,
+      "bytes": 8487
+    },
+    "impact": {
+      "ms": 4.018300212919712,
+      "bytes": 14511
+    }
+  },
+  "step": {
+    "id": "a9a01d55e14fca38908a2e9a",
+    "kind": "Method",
+    "name": "step",
+    "qualified_name": "credit_rl.envs.credit_limit_env.CreditLimitEnv.step",
+    "source": {
+      "file": "src/credit_rl/envs/credit_limit_env.py",
+      "start_line": 170,
+      "end_line": 218,
+      "start_column": 4,
+      "end_column": 84
+    },
+    "parent": "0ccbe6ef6d167893b83af61e",
+    "signature": "step(self, action: int)",
+    "docstring": "",
+    "metadata": {
+      "decorators": [],
+      "conditional": false,
+      "async": false,
+      "returns": "",
+      "generator": false,
+      "parameters": [
+        "cbf212e10b996b5e22cd5308",
+        "d49e2491fb054eb2f2731a0b"
+      ]
+    }
+  },
+  "flow_operations": 39,
+  "decision_pd": {
+    "definitions": 1,
+    "uses": 3,
+    "bindings": 1
+  }
+}

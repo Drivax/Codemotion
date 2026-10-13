@@ -1,0 +1,84 @@
+%% {"repository":{"id":"8e409ee6ccd42af6faf8dbd6","name":"Dynamic-Credit-Limit-Optimization-with-RL-","revision":null,"snapshot":"8e409ee6ccd42af6faf8dbd68a89817e56918c90423afee18d5326f1a81685c5"},"engine":"2.0","schema_version":"2.0","scope":"displayed graph","filters":{"edgeMode":"control","variable":"","orientation":"TB","follow":true,"hideSelf":true,"light":false,"graphScope":{"focus":null,"direction":"both","depth":1,"relations":["CALLS","CONTAINS","IMPORTS","INHERITS","INSTANTIATES"]}},"truncated":false,"nodes":39,"edges":43,"uncertainty":"Static, incomplete; no runtime execution.","created":"2026-10-13T15:48:38.829Z"}
+flowchart TB
+  n0["self"]
+  n1["action: int"]
+  n2["self._done"]
+  n3["merge possible paths"]
+  n4["raise RuntimeError( Episode is inactive  call reset before step )"]
+  n5["not self.action_space.contains(action)"]
+  n6["merge possible paths"]
+  n7["raise ValueError(f Invalid action:  action  )"]
+  n8["action = int(action)"]
+  n9["previous = self.state"]
+  n10["decision_pd = self._predicted_pd"]
+  n11["multiplier = self.config.environment.action_multipliers action "]
+  n12["admitted_limit  guardrail_blocked = effective_limit(previous.credit_limit  previous.months_delinquent  multiplier  self."]
+  n13["shocks = self._shock_path.months self._elapsed "]
+  n14["outcome = self._dgp.step(previous  admitted_limit   previous.credit_limit  self._traits  shocks  self._macro_path.states"]
+  n15["breakdown = calculate_reward(previous  outcome  decision_pd  self.config.reward)"]
+  n16["self._state = outcome.state"]
+  n17["self._elapsed  = 1"]
+  n18["self._predicted_pd = self._predict_pd(self.state)"]
+  n19["terminated = self.state.defaulted"]
+  n20["truncated = self._elapsed  = self.config.environment.horizon and (not terminated)"]
+  n21["self._done = terminated or truncated"]
+  n22["info = self._info()"]
+  n23["info.update(reward_components=breakdown.to_dict()  decision_pd=decision_pd  payment=outcome.payment  spending=outcome.sp"]
+  n24["info  guardrail_blocked   = guardrail_blocked"]
+  n25["merge possible paths"]
+  n26["self._record_history or self._record_diagnostics"]
+  n27["row = self._history_row(action=action  reward=breakdown.total  terminated=terminated  truncated=truncated)"]
+  n28["row.update( f reward_ key  : value for key  value in breakdown.to_dict().items() )"]
+  n29["row.update(payment=outcome.payment  spending=outcome.spending  exposure=outcome.exposure  decision_pd=decision_pd  actio"]
+  n30["row  guardrail_blocked   = guardrail_blocked"]
+  n31["self._record_history"]
+  n32["merge possible paths"]
+  n33["self._history.append(row)"]
+  n34["self._record_diagnostics"]
+  n35["merge possible paths"]
+  n36["self._diagnostics.append(   row   p_default_true : outcome.p_default_true   realized_default : self.state.defaulted   ad"]
+  n37["return (self._get_observation()  breakdown.total  terminated  truncated  info)"]
+  n38["function exit"]
+  n37 -->|"control"| n38
+  n25 -->|"control"| n37
+  n35 -->|"control"| n25
+  n36 -->|"control"| n35
+  n34 -->|"True"| n36
+  n34 -->|"False"| n35
+  n32 -->|"control"| n34
+  n33 -->|"control"| n32
+  n31 -->|"True"| n33
+  n31 -->|"False"| n32
+  n30 -->|"control"| n31
+  n29 -->|"control"| n30
+  n28 -->|"control"| n29
+  n27 -->|"control"| n28
+  n26 -->|"True"| n27
+  n26 -->|"False"| n25
+  n24 -->|"control"| n26
+  n23 -->|"control"| n24
+  n22 -->|"control"| n23
+  n21 -->|"control"| n22
+  n20 -->|"control"| n21
+  n19 -->|"control"| n20
+  n18 -->|"control"| n19
+  n17 -->|"control"| n18
+  n16 -->|"control"| n17
+  n15 -->|"control"| n16
+  n14 -->|"control"| n15
+  n13 -->|"control"| n14
+  n12 -->|"control"| n13
+  n11 -->|"control"| n12
+  n10 -->|"control"| n11
+  n9 -->|"control"| n10
+  n8 -->|"control"| n9
+  n6 -->|"control"| n8
+  n7 -->|"control"| n38
+  n5 -->|"True"| n7
+  n5 -->|"False"| n6
+  n3 -->|"control"| n5
+  n4 -->|"control"| n38
+  n2 -->|"True"| n4
+  n2 -->|"False"| n3
+  n1 -->|"control"| n2
+  n0 -->|"control"| n1

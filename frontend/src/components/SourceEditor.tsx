@@ -4,24 +4,23 @@ import Editor, { loader, type OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import type { SourceLocation, SymbolNode } from '@/lib/types';
 loader.config({ paths: { vs: '/monaco/vs' } });
-export default function SourceEditor({ source, location, symbols, onSelect, light }: {
-  source: string; location: SourceLocation | null; symbols: SymbolNode[]; onSelect: (id: string) => void; light: boolean;
+export default function SourceEditor({ source, location, symbols, onSelect, light, onToken }: {
+  source: string; location: SourceLocation | null; symbols: SymbolNode[]; onSelect: (id: string) => void; light: boolean; onToken?: (file: string, line: number, column: number) => void;
 }) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const decorations = useRef<editor.IEditorDecorationsCollection | null>(null);
   const [ready, setReady] = useState(false);
-  const latest = useRef({ symbols, onSelect, location });
-  latest.current = { symbols, onSelect, location };
-  const mounted: OnMount = ed => {
+  const latest = useRef({ symbols, onSelect, location, onToken });
+  latest.current = { symbols, onSelect, location, onToken };
+  const mounted: OnMount = (ed, monaco) => {
     editorRef.current = ed;
     decorations.current = ed.createDecorationsCollection();
     ed.onMouseDown(event => {
       const position = event.target.position;
-      if (!position) return;
-      const matches = latest.current.symbols.filter(s => s.source !== null && s.source.file === latest.current.location?.file && s.source.start_line <= position.lineNumber && s.source.end_line >= position.lineNumber);
-      matches.sort((a, b) => (a.source!.end_line - a.source!.start_line) - (b.source!.end_line - b.source!.start_line));
-      if (matches[0]) latest.current.onSelect(matches[0].id);
+      if (!position || !ed.getModel()?.getWordAtPosition(position)) return;
+      if (latest.current.location) latest.current.onToken?.(latest.current.location.file, position.lineNumber, position.column - 1);
     });
+    ed.addAction({ id: 'codemotion.references', label: 'CodeMotion : définition et références', keybindings: [monaco.KeyCode.F12], contextMenuGroupId: 'navigation', run: editor => { const pos = editor.getPosition(); const current = latest.current; if (pos && current.location && editor.getModel()?.getWordAtPosition(pos)) current.onToken?.(current.location.file, pos.lineNumber, pos.column - 1); } });
     setReady(true);
   };
   useEffect(() => {

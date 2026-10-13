@@ -13,9 +13,24 @@ CodeMotion analyse l’AST : il **n’exécute jamais le code du projet importé
 - **Object Inspector** : graphe déplaçable, zoom, minimap, filtres, focus, recherche, membres et relations cliquables.
 - **Data Flow Player / Static Flow** : graphe de contrôle, dépendances définition–usage, versions symboliques, lecture/pause, pas précédent/suivant, vitesse et historique.
 - Choix explicite des branches et d’une itération **symbolique** de boucle. Aucun résultat d’exécution ni nombre d’itérations inventé.
-- Navigation dans les fonctions appelées, bornée à huit entrées dans l’historique de flux ; retour au contexte précédent.
+- Navigation dans les fonctions appelées, bornée à huit appels imbriqués, indépendamment de l’historique ; retour au contexte précédent.
 - Monaco en lecture seule, distribué localement, synchronisé avec la sélection. Thèmes sombre/clair, panneaux redimensionnables, réduction des animations selon les préférences système.
-- Jobs isolés annulables, limites de ressources, diagnostics par fichier, cache mémoire par contenu, export JSON versionné.
+- Jobs isolés annulables, limites de ressources, diagnostics par fichier, cache mémoire par contenu, snapshots persistants et exports versionnés.
+
+## Exploration V2
+
+- Graphes contrôle/données/combinés, filtre par variable, masquage de `self`, orientation et positions conservées.
+- Arbre repliable avec révélation du symbole, favoris, recherche globale **Ctrl+K** (symboles, fichiers via leur chemin, texte et commandes).
+- Inspection libre indépendante du lecteur ; retour à l’étape active et pile des appelants.
+- Références sémantiques depuis Monaco (clic ou **F12**), définitions/usages et transmission des arguments.
+- Packages/dossiers agrégés, voisinage entrant/sortant à profondeur réglable et limites affichées.
+- Impact et preuves source, chemins entre symboles, cycles d’imports et métriques architecturales configurables.
+- **Sessions** : snapshots récents sur disque, parcours nommés, restauration, renommage, suppression et comparaison.
+- **Exporter** : PNG, SVG, JSON, Mermaid, Markdown du parcours et lien direct local.
+- Panneaux repliables, redimensionnables et maximisables ; thèmes clair/sombre et tiroirs sur petit écran.
+- Import GitHub public avec branche, tag ou SHA ; réanalyse du contenu du snapshot.
+
+Guide des parcours, API et formats : [Exploration V2](docs/exploration-v2.md). Résultats et captures : [Validation V2](docs/validation-v2.md). Les limites restantes sont détaillées dans [limitations](docs/limitations.md).
 
 ## Installation
 

@@ -90,8 +90,19 @@ class Repository(BaseModel):
     snapshot: str
 
 
+class Reference(BaseModel):
+    scope: str
+    name: str
+    source: SourceLocation
+    targets: list[str] = Field(default_factory=list)
+    resolution: Resolution = Resolution.unresolved
+    access: str = "read"
+
+
 class Analysis(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
+    engine_version: str = "2.0"
+    references: list[Reference] = Field(default_factory=list)
     repository: Repository
     files: list[FileRecord] = Field(default_factory=list)
     nodes: list[GraphNode] = Field(default_factory=list)

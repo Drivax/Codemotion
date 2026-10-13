@@ -6,14 +6,15 @@ export interface SymbolNode {
   metadata: { decorators?: string[]; bases?: string[]; annotation?: string; literal?: string | null;
     storage?: string; expression?: string; resolution?: Resolution; targets?: string[];
     parameters?: string[]; returns?: string; async?: boolean; generator?: boolean;
-    dataclass?: boolean; conditional?: boolean; inferred_types?: string[]; arguments?: string[] };
+    dataclass?: boolean; conditional?: boolean; inferred_types?: string[]; path?: string; directory?: boolean; arguments?: string[] };
 }
 export interface Relation { id: string; source: string; target: string; kind: string; resolution: Resolution; provenance: SourceLocation | null; label: string }
-export interface Graph { nodes: SymbolNode[]; edges: Relation[]; total: number }
+export interface Graph { nodes: SymbolNode[]; edges: Relation[]; total: number; truncated?: boolean; edge_total?: number; next_offset?: number | null; scope?: unknown; limitation?: string }
 export interface Details { symbol: SymbolNode; children: SymbolNode[]; relations: Relation[] }
 export interface FileRecord { path: string; package: string; parsed: boolean; source?: string }
 export interface Diagnostic { code: string; message: string; severity: 'info' | 'warning' | 'error'; source: SourceLocation | null }
 export interface Summary {
+  engine_version?: string;
   repository: { id: string; name: string; snapshot: string; revision: string | null };
   files: FileRecord[]; diagnostics: Diagnostic[]; metrics: Record<string, number>;
 }

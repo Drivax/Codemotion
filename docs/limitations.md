@@ -17,19 +17,25 @@
 
 ## Import et limites opérationnelles
 
-- Le sélecteur navigateur vise les dossiers desktop compatibles `webkitdirectory` (testé avec Chromium). Le frontend lit les contenus en UTF-8 ; les encodages historiques nécessitent conversion avant import local. Le téléchargement GitHub utilise la détection d’encodage Python.
-- Les règles `.gitignore` usuelles et imbriquées sont appliquées avec pathspec ; les interactions complexes de réinclusion entre répertoires ignorés ne reproduisent pas tous les cas de Git.
-- GitHub utilise la révision courante résolue vers un SHA. Pas de sélection de branche/tag dans l’interface, ni d’accès aux dépôts privés.
-- Cache volatil, six snapshots et budget 80 MB de JSON. Les projets très riches peuvent dépasser ce budget malgré un source inférieur à 20 MB.
-- Le timeout tue le worker ; aucune limite mémoire OS stricte n’est configurée. Les plafonds d’entrée/AST/graphes réduisent la charge mais ne constituent pas une garantie mémoire système.
+- Dossiers importés via `webkitdirectory`, lus en UTF-8. Les encodages historiques locaux nécessitent une conversion ; le chargeur GitHub détecte l’encodage Python.
+- `.gitignore` utilise pathspec ; les réinclusions complexes ne reproduisent pas tous les cas de Git.
+- GitHub public uniquement, branche/tag/SHA résolu et téléchargement épinglé au SHA. Réanalyser recalcule le snapshot actuel ; réimporter pour récupérer une nouvelle révision distante.
+- Archive `.codemotion/snapshots` limitée à 256 MB de JSON, éviction des fichiers les plus anciens. Les sources importées y sont conservées. Suppression possible dans Sessions.
+- Cache de jobs limité à six analyses et 80 MB sérialisés ; restauration disque limitée à deux analyses, index de requêtes limité à deux snapshots. Ces budgets ne plafonnent pas la mémoire Python résidente.
+- Timeout/annulation terminent le worker. Pas de limite mémoire OS stricte. Les requêtes de lecture sont bornées ; annuler leur requête navigateur ne termine pas un calcul serveur déjà engagé.
+- Sessions navigateur : au plus 30, stockage local soumis au quota du navigateur. Un lien local exige le même snapshot installé et un moteur compatible ; il ne transporte pas les sources.
 
-## Interface et perspectives
+## Interface et analyse complémentaire
 
-- Vue initiale limitée à 60 nœuds ; graphe réseau chargé limité à 5 000 symboles. Détails et sources à la demande, sans streaming incrémental complet du graphe.
-- Historique de symboles et de lecture en mémoire ; pas de sauvegarde des positions, de session, de favoris ou de cache sur disque.
-- Source → graphe par plage de déclaration, pas par résolution sémantique du mot cliqué. Pas de menu de cibles ambiguës dans Monaco.
-- Pas de représentation autonome de chaque package et de chaque instance runtime ; les sites d’instanciation sont des CallSite avec arête INSTANTIATES.
-- Tests réels exécutés sur Windows/Chromium. Les scripts et la CI Linux sont fournis, mais l’exécution macOS/Linux n’a pas été observée dans cette session.
-- La première version couvre les trois phases sur un sous-ensemble explicite. Elle ne prétend pas satisfaire une analyse exhaustive du langage.
+- Chaque vue réseau charge un sous-graphe : 60 nœuds initialement, jusqu’à 1 000 par requête de voisinage. La recherche couvre tout le snapshot ; la troncature est signalée. Pas de virtualisation complète de toutes les métadonnées de l’arbre.
+- Navigation sémantique conservatrice des usages `Name`/`Attribute`. Certains tokens de déclaration et paramètres n’ont pas de référence dédiée ; l’arbre et la recherche permettent d’ouvrir leur définition.
+- Les définitions atteignantes du graphe sont statiques ; les versions montrées par le lecteur suivent le parcours choisi. Pas de propagation complète des alias/valeurs/mutations runtime.
+- 8 appels imbriqués, 2 000 étapes de parcours, 40 positions d’historique. Les boucles sont des choix hypothétiques explicites.
+- Chemins : profondeur maximale 12, 100 résultats, 10 000 états explorés. Impact : profondeur maximale 8 et 1 000 résultats ; tests liés identifiés par noms de fichiers, sans preuve de couverture.
+- Cycles d’imports observés sans classification spécifique de `TYPE_CHECKING`. Les alertes de taille/couplage et symboles potentiellement inutilisés sont heuristiques, pas des défauts certains.
+- Comparaison par fichier, nom qualifié et type de symbole ; renommages/déplacements apparaissent comme suppression/ajout. Les impacts affichés du diff sont bornés.
+- PNG/SVG sont des rendus simplifiés avec positions et métadonnées, pas des captures pixel-identiques du canvas. PNG limité à 8 192 pixels par côté et 32 mégapixels. Export de la vue ou du seul nœud sélectionné ; pas de sélection multiple arbitraire.
+- Interface mixte français/anglais : pas de sélecteur bilingue complet. La navigation clavier native/dialogues est vérifiée, sans audit exhaustif de lecteur d’écran.
+- Validation observée sur Windows/Chromium ; Linux/macOS non exécutés dans cette session.
 
-Priorités : CFG des exceptions, MRO/réexports, bindings sensibles au chemin, graphe incrémental, encodages locaux supplémentaires, navigation sémantique dans Monaco et validation multi-plateforme.
+Priorités restantes : CFG des exceptions, MRO/réexports, alias et bindings sensibles au chemin, références sur tous les tokens de déclaration, virtualisation complète, traduction intégrale et validation multiplateforme.

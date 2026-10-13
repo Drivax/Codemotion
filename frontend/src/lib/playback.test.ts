@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, choices, initialPlayback, untilDecision } from './playback';
+import { advance, choices, initialPlayback, untilDecision, validPlayback } from './playback';
 import type { Flow } from './types';
 export const fixture: Flow = { function_id: 'f', entry: 'input', operations: [], limitations: [], edges: [
   { source: 'input', target: 'condition', kind: 'control', label: '' },
@@ -39,4 +39,11 @@ describe('hypothetical path playback', () => {
     const start = initialPlayback(fixture);
     expect(advance(fixture, start, 'fake')).toBe(start);
   });
+});
+
+it('rejects a restored trail that jumps across a data edge', () => {
+  const flow = { ...fixture, operations: ['input', 'condition', 'yes', 'no', 'exit'].map(id => ({ id })) } as Flow;
+  expect(validPlayback(flow, { trail: ['input', 'exit'], index: 1 })).toBe(false);
+  expect(validPlayback(flow, { trail: ['input', 'condition', 'yes', 'exit'], index: 2 })).toBe(true);
+  expect(validPlayback(flow, { trail: ['input'], index: 10 })).toBe(false);
 });

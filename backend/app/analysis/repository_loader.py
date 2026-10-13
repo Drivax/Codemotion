@@ -105,7 +105,7 @@ class RepositoryLoader:
                 files[path] = raw.decode(encoding)
         return self.load(files)
 
-    def github(self, url: str) -> tuple[dict[str, str], str, str]:
+    def github(self, url: str, ref: str | None = None) -> tuple[dict[str, str], str, str]:
         parsed = urlparse(url)
         if parsed.scheme != "https" or parsed.netloc != "github.com" or parsed.query or parsed.fragment:
             raise ValueError("Use https://github.com/owner/repository")
@@ -116,7 +116,7 @@ class RepositoryLoader:
         repo = repo.removesuffix(".git")
         # Fixed HTTPS origins only, no redirects or user-controlled hosts.
         with httpx.Client(timeout=self.limits.timeout, follow_redirects=False, trust_env=False) as client:
-            response = client.get(f"https://api.github.com/repos/{owner}/{repo}/commits", params={"per_page": 1})
+            response = client.get(f"https://api.github.com/repos/{owner}/{repo}/commits", params={"per_page": 1, **({"sha": ref} if ref else {})})
             response.raise_for_status()
             revision = response.json()[0]["sha"]
             if not re.fullmatch(r"[0-9a-f]{40}", revision):

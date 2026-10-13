@@ -1,0 +1,768 @@
+{
+  "metadata": {
+    "repository": {
+      "id": "8e409ee6ccd42af6faf8dbd6",
+      "name": "Dynamic-Credit-Limit-Optimization-with-RL-",
+      "revision": null,
+      "snapshot": "8e409ee6ccd42af6faf8dbd68a89817e56918c90423afee18d5326f1a81685c5"
+    },
+    "engine": "2.0",
+    "schema_version": "2.0",
+    "scope": "displayed graph",
+    "filters": {
+      "edgeMode": "control",
+      "variable": "",
+      "orientation": "TB",
+      "follow": true,
+      "hideSelf": true,
+      "light": false,
+      "graphScope": {
+        "focus": null,
+        "direction": "both",
+        "depth": 1,
+        "relations": [
+          "CALLS",
+          "CONTAINS",
+          "IMPORTS",
+          "INHERITS",
+          "INSTANTIATES"
+        ]
+      }
+    },
+    "truncated": false,
+    "nodes": 39,
+    "edges": 43,
+    "uncertainty": "Static, incomplete; no runtime execution.",
+    "created": "2026-10-13T15:48:38.397Z"
+  },
+  "nodes": [
+    {
+      "id": "4eacbc6d1951fa16d1593999",
+      "name": "self",
+      "kind": "input",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 170,
+        "end_line": 170,
+        "start_column": 13,
+        "end_column": 17
+      }
+    },
+    {
+      "id": "b993bc52adc85562b953da1d",
+      "name": "action: int",
+      "kind": "input",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 170,
+        "end_line": 170,
+        "start_column": 19,
+        "end_column": 30
+      }
+    },
+    {
+      "id": "67bafe5aa1d8e90ba2e1fe24",
+      "name": "self._done",
+      "kind": "condition",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 171,
+        "end_line": 171,
+        "start_column": 11,
+        "end_column": 21
+      }
+    },
+    {
+      "id": "72bf1d2212ce92071bbcfed9",
+      "name": "merge possible paths",
+      "kind": "join",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 171,
+        "end_line": 171,
+        "start_column": 11,
+        "end_column": 21
+      }
+    },
+    {
+      "id": "ab29da1e3d752c491659dbec",
+      "name": "raise RuntimeError('Episode is inactive; call reset before step')",
+      "kind": "raise",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 172,
+        "end_line": 172,
+        "start_column": 12,
+        "end_column": 77
+      }
+    },
+    {
+      "id": "8b815a106e920c17a694e3be",
+      "name": "not self.action_space.contains(action)",
+      "kind": "condition",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 173,
+        "end_line": 173,
+        "start_column": 11,
+        "end_column": 49
+      }
+    },
+    {
+      "id": "9a9989fc2e1ef2ed06a5c378",
+      "name": "merge possible paths",
+      "kind": "join",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 173,
+        "end_line": 173,
+        "start_column": 11,
+        "end_column": 49
+      }
+    },
+    {
+      "id": "4217188075f79de156bf37f9",
+      "name": "raise ValueError(f'Invalid action: {action}')",
+      "kind": "raise",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 174,
+        "end_line": 174,
+        "start_column": 12,
+        "end_column": 57
+      }
+    },
+    {
+      "id": "1efed30f85c08c72ae3148f0",
+      "name": "action = int(action)",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 175,
+        "end_line": 175,
+        "start_column": 8,
+        "end_column": 28
+      }
+    },
+    {
+      "id": "c0396b3a99aad8df0cf8bdf1",
+      "name": "previous = self.state",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 176,
+        "end_line": 176,
+        "start_column": 8,
+        "end_column": 29
+      }
+    },
+    {
+      "id": "71853439d3dc1c64b6675108",
+      "name": "decision_pd = self._predicted_pd",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 177,
+        "end_line": 177,
+        "start_column": 8,
+        "end_column": 40
+      }
+    },
+    {
+      "id": "a6f16db858e7454edc0e1151",
+      "name": "multiplier = self.config.environment.action_multipliers[action]",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 178,
+        "end_line": 178,
+        "start_column": 8,
+        "end_column": 71
+      }
+    },
+    {
+      "id": "aed83d603564ea3eea2f4597",
+      "name": "admitted_limit, guardrail_blocked = effective_limit(previous.credit_limit, previous.months_delinquent, multiplier, self.config.environment, self.severe_delinquency_months)",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 179,
+        "end_line": 180,
+        "start_column": 8,
+        "end_column": 80
+      }
+    },
+    {
+      "id": "ea88f50dc3e4b972c652b399",
+      "name": "shocks = self._shock_path.months[self._elapsed]",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 181,
+        "end_line": 181,
+        "start_column": 8,
+        "end_column": 55
+      }
+    },
+    {
+      "id": "78814f9d1dcbab7ac199dafe",
+      "name": "outcome = self._dgp.step(previous, admitted_limit / previous.credit_limit, self._traits, shocks, self._macro_path.states[self._elapsed + 1])",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 182,
+        "end_line": 183,
+        "start_column": 8,
+        "end_column": 82
+      }
+    },
+    {
+      "id": "2d650ac97c1201259dc058bb",
+      "name": "breakdown = calculate_reward(previous, outcome, decision_pd, self.config.reward)",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 184,
+        "end_line": 184,
+        "start_column": 8,
+        "end_column": 88
+      }
+    },
+    {
+      "id": "af8560100ee0aac691907098",
+      "name": "self._state = outcome.state",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 185,
+        "end_line": 185,
+        "start_column": 8,
+        "end_column": 35
+      }
+    },
+    {
+      "id": "dbefcfa179e1c7db61a58070",
+      "name": "self._elapsed += 1",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 186,
+        "end_line": 186,
+        "start_column": 8,
+        "end_column": 26
+      }
+    },
+    {
+      "id": "a8f16afee962cd5e8b55ae80",
+      "name": "self._predicted_pd = self._predict_pd(self.state)",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 187,
+        "end_line": 187,
+        "start_column": 8,
+        "end_column": 57
+      }
+    },
+    {
+      "id": "ff5893e64a0d628fc54f53dc",
+      "name": "terminated = self.state.defaulted",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 188,
+        "end_line": 188,
+        "start_column": 8,
+        "end_column": 41
+      }
+    },
+    {
+      "id": "ece92d419a3a13e8a354a3d4",
+      "name": "truncated = self._elapsed >= self.config.environment.horizon and (not terminated)",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 190,
+        "end_line": 190,
+        "start_column": 8,
+        "end_column": 87
+      }
+    },
+    {
+      "id": "66db3b7d5088bbe16c6fdccc",
+      "name": "self._done = terminated or truncated",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 191,
+        "end_line": 191,
+        "start_column": 8,
+        "end_column": 44
+      }
+    },
+    {
+      "id": "f9f81b9d2801363071606966",
+      "name": "info = self._info()",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 192,
+        "end_line": 192,
+        "start_column": 8,
+        "end_column": 27
+      }
+    },
+    {
+      "id": "eac2bfa8518b749d987ba906",
+      "name": "info.update(reward_components=breakdown.to_dict(), decision_pd=decision_pd, payment=outcome.payment, spending=outcome.spending, exposure=outcome.exposure, macro_state_used=int(previous.macro_state.regime), requested_action=multiplier - 1, effective_action=outcome.effective_multiplier - 1)",
+      "kind": "call",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 193,
+        "end_line": 196,
+        "start_column": 8,
+        "end_column": 68
+      }
+    },
+    {
+      "id": "b5ac483e7b42ade3593b289e",
+      "name": "info['guardrail_blocked'] = guardrail_blocked",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 197,
+        "end_line": 197,
+        "start_column": 8,
+        "end_column": 53
+      }
+    },
+    {
+      "id": "41a0ddfb8e38457e8a00999f",
+      "name": "merge possible paths",
+      "kind": "join",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 198,
+        "end_line": 198,
+        "start_column": 11,
+        "end_column": 59
+      }
+    },
+    {
+      "id": "55a08eb047202d920cfbb970",
+      "name": "self._record_history or self._record_diagnostics",
+      "kind": "condition",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 198,
+        "end_line": 198,
+        "start_column": 11,
+        "end_column": 59
+      }
+    },
+    {
+      "id": "ed0f53ef38d2de8c2fb59ca7",
+      "name": "row = self._history_row(action=action, reward=breakdown.total, terminated=terminated, truncated=truncated)",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 199,
+        "end_line": 200,
+        "start_column": 12,
+        "end_column": 79
+      }
+    },
+    {
+      "id": "268f5fc97632282325566104",
+      "name": "row.update({f'reward_{key}': value for key, value in breakdown.to_dict().items()})",
+      "kind": "call",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 201,
+        "end_line": 201,
+        "start_column": 12,
+        "end_column": 94
+      }
+    },
+    {
+      "id": "96974ecc5c4aed27b0db2347",
+      "name": "row.update(payment=outcome.payment, spending=outcome.spending, exposure=outcome.exposure, decision_pd=decision_pd, action_multiplier=multiplier, macro_state_used=int(previous.macro_state.regime), requested_action=multiplier - 1, effective_action=outcome.effective_multiplier - 1, credit_limit_before_action=previous.credit_limit)",
+      "kind": "call",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 202,
+        "end_line": 206,
+        "start_column": 12,
+        "end_column": 72
+      }
+    },
+    {
+      "id": "634f2b5a9b0cbf4c9e8a46ce",
+      "name": "row['guardrail_blocked'] = guardrail_blocked",
+      "kind": "assignment",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 207,
+        "end_line": 207,
+        "start_column": 12,
+        "end_column": 56
+      }
+    },
+    {
+      "id": "2cf73b40cefa3eb295515ce6",
+      "name": "self._record_history",
+      "kind": "condition",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 208,
+        "end_line": 208,
+        "start_column": 15,
+        "end_column": 35
+      }
+    },
+    {
+      "id": "eca9f9f0932cd085754daf43",
+      "name": "merge possible paths",
+      "kind": "join",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 208,
+        "end_line": 208,
+        "start_column": 15,
+        "end_column": 35
+      }
+    },
+    {
+      "id": "e2cbf9dc3c0964e3c529d520",
+      "name": "self._history.append(row)",
+      "kind": "call",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 209,
+        "end_line": 209,
+        "start_column": 16,
+        "end_column": 41
+      }
+    },
+    {
+      "id": "0e9dc974e6898e0f86a5291b",
+      "name": "self._record_diagnostics",
+      "kind": "condition",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 210,
+        "end_line": 210,
+        "start_column": 15,
+        "end_column": 39
+      }
+    },
+    {
+      "id": "8fe3aa2c2649e4a4379f62e9",
+      "name": "merge possible paths",
+      "kind": "join",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 210,
+        "end_line": 210,
+        "start_column": 15,
+        "end_column": 39
+      }
+    },
+    {
+      "id": "a56ae6eb33e84907c6054457",
+      "name": "self._diagnostics.append({**row, 'p_default_true': outcome.p_default_true, 'realized_default': self.state.defaulted, 'adverse_income_event': outcome.adverse_income_event, 'spending_elasticity': outcome.spending_elasticity, 'macro_credit_stress_used': previous.macro_state.credit_stress, 'macro_income_growth_used': previous.macro_state.income_growth, 'macro_spending_growth_used': previous.macro_state.spending_growth, **{f'shock_{name}': value for name, value in asdict(shocks).items()}})",
+      "kind": "call",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 211,
+        "end_line": 217,
+        "start_column": 16,
+        "end_column": 90
+      }
+    },
+    {
+      "id": "143bb7684cd497877c08fdb4",
+      "name": "return (self._get_observation(), breakdown.total, terminated, truncated, info)",
+      "kind": "return",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 218,
+        "end_line": 218,
+        "start_column": 8,
+        "end_column": 84
+      }
+    },
+    {
+      "id": "2c1ad8873f4758f9a24443c1",
+      "name": "function exit",
+      "kind": "exit",
+      "source": {
+        "file": "src/credit_rl/envs/credit_limit_env.py",
+        "start_line": 170,
+        "end_line": 218,
+        "start_column": 4,
+        "end_column": 84
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "143bb7684cd497877c08fdb4",
+      "target": "2c1ad8873f4758f9a24443c1",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "41a0ddfb8e38457e8a00999f",
+      "target": "143bb7684cd497877c08fdb4",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "8fe3aa2c2649e4a4379f62e9",
+      "target": "41a0ddfb8e38457e8a00999f",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "a56ae6eb33e84907c6054457",
+      "target": "8fe3aa2c2649e4a4379f62e9",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "0e9dc974e6898e0f86a5291b",
+      "target": "a56ae6eb33e84907c6054457",
+      "kind": "control",
+      "label": "True"
+    },
+    {
+      "source": "0e9dc974e6898e0f86a5291b",
+      "target": "8fe3aa2c2649e4a4379f62e9",
+      "kind": "control",
+      "label": "False"
+    },
+    {
+      "source": "eca9f9f0932cd085754daf43",
+      "target": "0e9dc974e6898e0f86a5291b",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "e2cbf9dc3c0964e3c529d520",
+      "target": "eca9f9f0932cd085754daf43",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "2cf73b40cefa3eb295515ce6",
+      "target": "e2cbf9dc3c0964e3c529d520",
+      "kind": "control",
+      "label": "True"
+    },
+    {
+      "source": "2cf73b40cefa3eb295515ce6",
+      "target": "eca9f9f0932cd085754daf43",
+      "kind": "control",
+      "label": "False"
+    },
+    {
+      "source": "634f2b5a9b0cbf4c9e8a46ce",
+      "target": "2cf73b40cefa3eb295515ce6",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "96974ecc5c4aed27b0db2347",
+      "target": "634f2b5a9b0cbf4c9e8a46ce",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "268f5fc97632282325566104",
+      "target": "96974ecc5c4aed27b0db2347",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "ed0f53ef38d2de8c2fb59ca7",
+      "target": "268f5fc97632282325566104",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "55a08eb047202d920cfbb970",
+      "target": "ed0f53ef38d2de8c2fb59ca7",
+      "kind": "control",
+      "label": "True"
+    },
+    {
+      "source": "55a08eb047202d920cfbb970",
+      "target": "41a0ddfb8e38457e8a00999f",
+      "kind": "control",
+      "label": "False"
+    },
+    {
+      "source": "b5ac483e7b42ade3593b289e",
+      "target": "55a08eb047202d920cfbb970",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "eac2bfa8518b749d987ba906",
+      "target": "b5ac483e7b42ade3593b289e",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "f9f81b9d2801363071606966",
+      "target": "eac2bfa8518b749d987ba906",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "66db3b7d5088bbe16c6fdccc",
+      "target": "f9f81b9d2801363071606966",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "ece92d419a3a13e8a354a3d4",
+      "target": "66db3b7d5088bbe16c6fdccc",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "ff5893e64a0d628fc54f53dc",
+      "target": "ece92d419a3a13e8a354a3d4",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "a8f16afee962cd5e8b55ae80",
+      "target": "ff5893e64a0d628fc54f53dc",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "dbefcfa179e1c7db61a58070",
+      "target": "a8f16afee962cd5e8b55ae80",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "af8560100ee0aac691907098",
+      "target": "dbefcfa179e1c7db61a58070",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "2d650ac97c1201259dc058bb",
+      "target": "af8560100ee0aac691907098",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "78814f9d1dcbab7ac199dafe",
+      "target": "2d650ac97c1201259dc058bb",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "ea88f50dc3e4b972c652b399",
+      "target": "78814f9d1dcbab7ac199dafe",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "aed83d603564ea3eea2f4597",
+      "target": "ea88f50dc3e4b972c652b399",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "a6f16db858e7454edc0e1151",
+      "target": "aed83d603564ea3eea2f4597",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "71853439d3dc1c64b6675108",
+      "target": "a6f16db858e7454edc0e1151",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "c0396b3a99aad8df0cf8bdf1",
+      "target": "71853439d3dc1c64b6675108",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "1efed30f85c08c72ae3148f0",
+      "target": "c0396b3a99aad8df0cf8bdf1",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "9a9989fc2e1ef2ed06a5c378",
+      "target": "1efed30f85c08c72ae3148f0",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "4217188075f79de156bf37f9",
+      "target": "2c1ad8873f4758f9a24443c1",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "8b815a106e920c17a694e3be",
+      "target": "4217188075f79de156bf37f9",
+      "kind": "control",
+      "label": "True"
+    },
+    {
+      "source": "8b815a106e920c17a694e3be",
+      "target": "9a9989fc2e1ef2ed06a5c378",
+      "kind": "control",
+      "label": "False"
+    },
+    {
+      "source": "72bf1d2212ce92071bbcfed9",
+      "target": "8b815a106e920c17a694e3be",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "ab29da1e3d752c491659dbec",
+      "target": "2c1ad8873f4758f9a24443c1",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "67bafe5aa1d8e90ba2e1fe24",
+      "target": "ab29da1e3d752c491659dbec",
+      "kind": "control",
+      "label": "True"
+    },
+    {
+      "source": "67bafe5aa1d8e90ba2e1fe24",
+      "target": "72bf1d2212ce92071bbcfed9",
+      "kind": "control",
+      "label": "False"
+    },
+    {
+      "source": "b993bc52adc85562b953da1d",
+      "target": "67bafe5aa1d8e90ba2e1fe24",
+      "kind": "control",
+      "label": ""
+    },
+    {
+      "source": "4eacbc6d1951fa16d1593999",
+      "target": "b993bc52adc85562b953da1d",
+      "kind": "control",
+      "label": ""
+    }
+  ]
+}

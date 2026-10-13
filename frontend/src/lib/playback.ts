@@ -25,3 +25,8 @@ export function untilDecision(flow: Flow, playback: Playback): Playback {
   }
   return current;
 }
+export function validPlayback(flow: Flow, playback: unknown): playback is Playback {
+  if (!playback || typeof playback !== 'object') return false;
+  const p = playback as Playback;
+  return Array.isArray(p.trail) && p.trail.length > 0 && p.trail.length <= 2000 && p.trail[0] === flow.entry && Number.isInteger(p.index) && p.index >= 0 && p.index < p.trail.length && p.trail.every((id, i) => flow.operations.some(o => o.id === id) && (i === 0 || flow.edges.some(e => e.kind === 'control' && e.source === p.trail[i - 1] && e.target === id)));
+}

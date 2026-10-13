@@ -6,7 +6,7 @@ from app.analysis.class_analyzer import ClassAnalyzer
 from app.analysis.data_flow import DataFlowAnalyzer
 from app.analysis.import_resolver import ImportResolver
 from app.analysis.repository_loader import Limits, RepositoryLoader, snapshot
-from app.models.schema import Analysis, Diagnostic, FileRecord, GraphEdge, GraphNode, Repository, Resolution
+from app.models.schema import Analysis, Diagnostic, FileRecord, GraphEdge, GraphNode, Repository, Resolution, Reference
 
 
 class AnalysisEngine:
@@ -155,6 +155,40 @@ class AnalysisEngine:
                     result.diagnostics.append(Diagnostic(code="flow_limit", message=str(error), source=symbol.source))
             if len(result.nodes) > self.limits.max_nodes or time.perf_counter() - started > self.limits.timeout:
                 raise ValueError("Analysis node/time limit exceeded")
+        # Token-level source evidence, kept in lexical scopes. AST columns are UTF-8
+        # byte offsets; the editor protocol uses UTF-16 code units.
+        for scope, tree in parsed.definitions.items():
+            scope_source = resolver.nodes[scope].source
+            if scope_source is None:
+                continue
+            file = scope_source.file
+            lines = files[file].splitlines()
+            call_tokens = {id(n.func) for n in local_walk(tree) if isinstance(n, ast.Call)}
+            for ref in local_walk(tree):
+                if not isinstance(ref, (ast.Name, ast.Attribute)):
+                    continue
+                span = location(file, ref)
+                if isinstance(ref, ast.Attribute):
+                    span.start_line = span.end_line
+                    span.start_column = span.end_column - len(ref.attr.encode("utf-8"))
+                for line_key, column_key in (("start_line", "start_column"), ("end_line", "end_column")):
+                    line = lines[getattr(span, line_key) - 1]
+                    prefix = line.encode("utf-8")[:getattr(span, column_key)].decode("utf-8", errors="ignore")
+                    setattr(span, column_key, len(prefix.encode("utf-16-le")) // 2)
+                targets = resolver.resolve(ref, scope)
+                # Token navigation points to the lexical storage declaration, not
+                # a flow-insensitive callable alias inferred for call resolution.
+                storage_id = stable_id(scope, "variable", ref.id) if isinstance(ref, ast.Name) else None
+                if isinstance(ref, ast.Attribute) and expr(ref.value) in {"self", "cls"}:
+                    storage_id = stable_id(resolver.enclosing_class(scope), "attribute", ref.attr)
+                if storage_id in resolver.nodes:
+                    targets = list(dict.fromkeys([storage_id, *targets])) if id(ref) in call_tokens else [storage_id]
+                status = ("candidate" if len(targets) > 1 else "resolved" if storage_id in resolver.nodes else resolver.status(targets, ref, scope)) if targets else "unresolved"
+                result.references.append(Reference(scope=scope, name=expr(ref), source=span,
+                    targets=targets, resolution=Resolution(status),
+                    access="write" if isinstance(ref.ctx, ast.Store) else "read"))
+            if len(result.references) > self.limits.max_nodes * 4 or time.perf_counter() - started > self.limits.timeout:
+                raise ValueError("Reference index node/time limit exceeded")
         # Externals may have been created lazily during call resolution.
         known = {n.id for n in result.nodes}
         result.nodes.extend(n for n in parsed.nodes if n.id not in known)

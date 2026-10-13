@@ -11,18 +11,22 @@ from app.models.schema import Analysis
 
 
 def analyze_worker(payload: dict, output):
+    revision: str | None
     try:
+        output.put({"progress": "Downloading pinned GitHub revision" if payload.get("github_url") else "Validating local source files"})
         if payload.get("github_url"):
-            files, name, revision = RepositoryLoader().github(payload["github_url"])
+            files, name, revision = RepositoryLoader().github(payload["github_url"], payload.get("github_ref"))
         else:
-            files, name, revision = payload["files"], payload["name"], None
+            files, name, revision = payload["files"], payload["name"], payload.get("revision")
+        output.put({"progress": "Parsing AST, resolving symbols and building static flows"})
         output.put({"result": AnalysisEngine().analyze(files, name, revision).model_dump(mode="json")})
     except Exception as error:
         output.put({"error": f"{type(error).__name__}: {error}"[:700]})
 
 
 class JobStore:
-    def __init__(self):
+    def __init__(self, archive=None):
+        self.archive = archive
         self.jobs: OrderedDict[str, dict] = OrderedDict()
         self.repositories: OrderedDict[str, Analysis] = OrderedDict()
         self.lock = threading.RLock()
@@ -49,7 +53,7 @@ class JobStore:
             job = self.jobs[job_id]
             if job["status"] == "cancelled":
                 return
-            if payload.get("files"):
+            if payload.get("files") and not payload.get("force"):
                 try:
                     digest = snapshot(RepositoryLoader().load(payload["files"]))[:24]
                     if digest in self.repositories:
@@ -78,6 +82,9 @@ class JobStore:
                         job.update(status="failed", error="Analysis worker stopped unexpectedly")
                         return
                     continue
+                if "progress" in message:
+                    job.update(progress=message["progress"])
+                    continue
                 if "error" in message:
                     job.update(status="failed", error=message["error"])
                 else:
@@ -89,6 +96,12 @@ class JobStore:
                     with self.lock:
                         if job["status"] == "cancelled":
                             return
+                        if self.archive is not None:
+                            try:
+                                self.archive.put(result)
+                            except (OSError, ValueError) as error:
+                                job.update(status="failed", error=f"Cannot persist snapshot: {error}")
+                                return
                         self.repositories[result.repository.id] = result
                         while len(self.repositories) > 6 or sum(len(r.model_dump_json()) for r in self.repositories.values()) > self.max_cache_bytes:
                             self.repositories.popitem(last=False)
