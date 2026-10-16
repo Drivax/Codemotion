@@ -42,3 +42,16 @@ Archive : `.codemotion/snapshots/{id}.json` (Analysis Pydantic, schema_version 1
 Sessions : clé localStorage `codemotion.sessions.v1`, tableau de 30 éléments maximum, chacun `{format:1, repository, snapshot, title, savedAt, state}`. `state` contient vue, parcours, pile, filtres, panneaux, favoris et canvas (positions/viewport). La restauration valide types, bornes et continuité des arêtes du parcours. Le lien `#codemotion=...` transporte un état JSON encodé, pas les fichiers du projet.
 
 Export de vue JSON : `metadata.schema_version: 2.0`, repository, engine, scope, filters, truncated, nodes/edges, uncertainty, created ; tableaux nodes et edges. À distinguer du schéma d’analyse complet 1.0. SVG et Mermaid embarquent ces métadonnées ; Markdown porte snapshot, moteur, provenance et limites.
+
+## Lecteur : navigation du parcours (16 octobre 2026)
+
+Le bandeau du lecteur rappelle l’expression de l’étape active, même lorsque l’inspecteur est fermé. Le menu **Parcours** permet de rejoindre une étape déjà visitée et affiche la branche enregistrée. **Décision précédente** revient à la dernière bifurcation ; choisir une autre branche remplace uniquement la suite du parcours.
+
+Le bouton de retour au début conserve les étapes et les choix. Le bouton de réinitialisation efface le parcours. **Lire/Pause**, les flèches et la timeline restent disponibles ; les flèches clavier interrompent la lecture automatique. Les raccourcis ne s’appliquent pas aux champs, à Monaco ni aux dialogues ouverts. Un dialogue interrompt également l’avancement automatique à son prochain tick.
+
+La limite de 2 000 étapes interdit d’allonger davantage le parcours mais permet de revenir en arrière et de choisir une autre branche. Aucun code Python n’est exécuté.
+
+Validation de cette évolution : 19 tests frontend, lint, TypeScript/build production et quatre parcours navigateur ciblés réussis (import/lecture hors ligne, branches/boucles, inspection/session/export, rembobinage et décisions sur desktop/mobile).
+
+![Lecteur sur desktop](player-workflow-desktop.png)
+![Lecteur sur mobile](player-workflow-mobile.png)

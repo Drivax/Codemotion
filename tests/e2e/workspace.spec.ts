@@ -206,3 +206,28 @@ test('real project snapshot, variable path and every export format', async ({ pa
   await page.getByRole('button', { name: 'Toggle color theme' }).click();
   await page.screenshot({ path: path.join(root, 'docs/v2-real-flow-light.png') });
 });
+
+test('player preserves a recorded path and revisits decisions', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Import repository', exact: true }).click();
+  await page.getByRole('button', { name: 'branching', exact: true }).click();
+  await page.getByRole('button', { name: 'Explore Data Flow', exact: true }).click();
+  await page.getByRole('button', { name: 'Advance to next decision or end' }).click();
+  await page.getByRole('button', { name: 'True', exact: true }).click();
+  const count = await page.getByLabel('Aller à une étape du parcours').locator('option').count();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByLabel('Aller à une étape du parcours').locator('option')).toHaveCount(count);
+  await page.getByLabel('Aller à une étape du parcours').selectOption(String(count - 1));
+  await expect(page.locator('.operation-title')).toContainText("return 'accept'");
+  await page.getByRole('button', { name: 'Décision précédente', exact: true }).click();
+  await expect(page.getByText('Changer de branche', { exact: true })).toBeVisible();
+  await page.screenshot({ path: path.join(root, 'docs/player-workflow-desktop.png') });
+  await page.getByRole('button', { name: 'False', exact: true }).click();
+  await expect(page.locator('.operation-title')).not.toContainText("return 'accept'");
+  await expect(page.getByLabel('Aller à une étape du parcours').locator('option')).toHaveCount(count);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel('Aller à une étape du parcours')).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Next step', exact: true })).toBeInViewport();
+  await expect(page.locator('.graph-card.active')).toBeInViewport();
+  await page.screenshot({ path: path.join(root, 'docs/player-workflow-mobile.png') });
+});
