@@ -11,24 +11,24 @@ describe('player controls', () => {
   it('steps and resets with accessible controls', () => {
     const change = vi.fn();
     render(<Player flow={graph} playback={{ trail: ['a'], index: 0 }} onChange={change} />);
-    expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Next step' }));
+    expect(screen.getByRole('button', { name: 'Étape précédente' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Étape suivante' }));
     expect(change).toHaveBeenCalledWith({ trail: ['a', 'b'], index: 1 });
-    fireEvent.click(screen.getByRole('button', { name: 'Reset playback' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Recommencer le parcours' }));
     expect(change).toHaveBeenLastCalledWith({ trail: ['a'], index: 0 });
   });
   it('pauses for an explicit branch selection', () => {
     const change = vi.fn();
     render(<Player flow={graph} playback={{ trail: ['a', 'b'], index: 1 }} onChange={change} />);
-    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'False' }));
+    expect(screen.getByRole('button', { name: 'Lire' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Faux' }));
     expect(change).toHaveBeenCalledWith({ trail: ['a', 'b', 'd'], index: 2 });
   });
   it('plays and pauses without a network request', () => {
     vi.useFakeTimers();
     const change = vi.fn();
     render(<Player flow={graph} playback={{ trail: ['a'], index: 0 }} onChange={change} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lire' }));
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     vi.advanceTimersByTime(2000);
@@ -42,7 +42,7 @@ it('rewinds without erasing choices and navigates recorded steps', () => {
   const change = vi.fn();
   const playback = { trail: ['a', 'b', 'c'], index: 2 };
   render(<Player flow={graph} playback={playback} onChange={change} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Revenir au début' }));
   expect(change).toHaveBeenLastCalledWith({ ...playback, index: 0 });
   fireEvent.click(screen.getByRole('button', { name: 'Décision précédente' }));
   expect(change).toHaveBeenLastCalledWith({ ...playback, index: 1 });
@@ -59,10 +59,26 @@ it('manual keyboard navigation pauses autoplay', () => {
   vi.useFakeTimers();
   const change = vi.fn();
   render(<Player flow={graph} playback={{ trail: ['a'], index: 0 }} onChange={change} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Lire' }));
   fireEvent.keyDown(document.body, { key: 'ArrowRight' });
   vi.advanceTimersByTime(2000);
   expect(change).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Lire' })).toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+it('cancels autoplay immediately when inspection or function context changes', () => {
+  vi.useFakeTimers();
+  const change = vi.fn();
+  const props = { flow: graph, playback: { trail: ['a'], index: 0 }, onChange: change };
+  const { rerender } = render(<Player {...props} pauseKey="f:0" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Lire' }));
+  rerender(<Player {...props} pauseKey="f:1" />);
+  vi.advanceTimersByTime(2000);
+  expect(change).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Lire' })).toBeInTheDocument();
+  rerender(<Player {...props} pauseKey="other:1" />);
+  vi.advanceTimersByTime(2000);
+  expect(change).not.toHaveBeenCalled();
   vi.useRealTimers();
 });

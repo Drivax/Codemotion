@@ -29,6 +29,6 @@ export default function SourceEditor({ source, location, symbols, onSelect, ligh
     editorRef.current?.revealLineInCenter(location.start_line);
   }, [location, source, ready]);
   return <Editor height="100%" language="python" theme={light ? 'vs' : 'vs-dark'} value={source} path={location?.file || 'source.py'} onMount={mounted}
-    loading={<div className="empty-small">Loading local source editor…</div>} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, fontFamily: 'Consolas, monospace', scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 4, renderLineHighlight: 'none', padding: { top: 14 }, folding: true }} />;
+    loading={<div className="empty-small">Chargement de l’éditeur local…</div>} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, fontFamily: 'Consolas, monospace', scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 4, renderLineHighlight: 'none', padding: { top: 14 }, folding: true }} />;
 }
 

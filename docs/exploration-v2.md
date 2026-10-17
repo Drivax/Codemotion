@@ -55,3 +55,19 @@ Validation de cette évolution : 19 tests frontend, lint, TypeScript/build produ
 
 ![Lecteur sur desktop](player-workflow-desktop.png)
 ![Lecteur sur mobile](player-workflow-mobile.png)
+
+## Navigation et comparaison des parcours — 17 octobre 2026
+
+- Une interaction avec le graphe, un inspecteur ou une autre commande interrompt la lecture. La pause est conservée au changement de contexte : aucun redémarrage automatique lors d’un retour à l’appelant.
+- La barre **Pile des appels** affiche les fonctions et étapes suspendues. Cliquer un appelant restitue son parcours et ses filtres ; les positions de graphe restent conservées par fonction. Un retour à un appelant plus ancien retire les niveaux intermédiaires.
+- **Autour de l’étape active** montre un voisinage à deux liens de contrôle, avec les deux alternatives des décisions. Le cadrage attend que les cartes soient affichées. **Atténuer les liens secondaires** garde le parcours choisi et les liens adjacents lisibles.
+- Cliquer une variable distingue **Sur le parcours choisi** (étapes ordonnées, répétitions conservées, définition/transformation/usage/retour) et **Possibilités statiques** (toutes les branches). Les transmissions affichent variable → paramètre → fonction, avec indication des appels traversés.
+- **Comparer les parcours** enregistre le parcours jusqu’à l’étape active sous un nom. Choisir A et B affiche le préfixe commun, les passages par opération qui diffèrent et les dernières définitions de chaque variable. Restaurer permet de reprendre une variante ; Supprimer retire sa copie locale.
+- **F12** ou le clic sur un token ouvre sa définition et ses références. Noms déclarés et paramètres sont pris en charge. Plusieurs cibles apparaissent dans une liste à choix explicite ; aucune n’est ouverte automatiquement.
+- Chaque carte possède une case de sélection d’export. La fenêtre **Exporter** propose aussi une liste de cases. Cocher **Uniquement la sélection multiple** exporte les nœuds choisis et uniquement leurs liens internes, dans les cinq formats. Les sélections sont séparées par vue et ne modifient pas le parcours.
+
+Stockage des variantes : clé `codemotion.paths.v1:<snapshot>:<function_id>`, tableau de `{name, playback:{trail,index}, savedAt}`. Les entrées invalides, d’un autre contexte ou comportant des transitions impossibles ne sont pas restaurées. Un nom existant est remplacé ; maximum 20 entrées par fonction. Les erreurs de quota sont affichées.
+
+Options additionnelles de session : `nearby` et `dimSecondary`, booléens facultatifs pour rester compatible avec les anciennes sessions. Les cadres de pile conservent `callerOptions` et `callerInspected`. Les liens directs sont pris en compte au chargement et lors d’un changement du fragment de l’URL dans le même onglet.
+
+Raccourcis : **Ctrl+K** recherche globale, **F12** navigation source, **Espace** lecture/pause, **←/→** pas précédent/suivant hors champ de saisie. Les dialogues, boutons et Monaco conservent leurs interactions clavier propres.

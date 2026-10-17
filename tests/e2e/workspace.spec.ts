@@ -5,9 +5,9 @@ test('real folder import, class inspection, source, flow, offline playback and r
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
-  await page.getByLabel('Import Python folder').setInputFiles(path.join(root, 'examples/object-oriented'));
+  await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/object-oriented'));
   await expect(page.locator('.repo-title')).toContainText('object-oriented');
-  await page.getByLabel('Search symbols').fill('Car');
+  await page.getByLabel('Rechercher des symboles').fill('Car');
   await page.locator('.file-tree .search-result').filter({ hasText: 'Car' }).click();
   await expect(page.locator('.inspector h2')).toHaveText('Car');
   await expect(page.locator('.inspector')).toContainText('engine');
@@ -17,61 +17,61 @@ test('real folder import, class inspection, source, flow, offline playback and r
   await expect(page.locator('.react-flow__edge').first()).toBeVisible();
   await page.screenshot({ path: path.join(root, 'docs/object-inspector.png') });
   await page.locator('.method-row').filter({ hasText: 'drive' }).click();
-  await page.getByRole('button', { name: 'Explore Data Flow', exact: true }).click();
-  await expect(page.locator('.static-label')).toHaveText('STATIC FLOW');
+  await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
+  await expect(page.locator('.static-label')).toHaveText('FLUX STATIQUE');
   await expect(page.locator('.graph-card.active')).toBeVisible();
   await page.route('**/api/**', route => route.abort());
-  await page.getByRole('button', { name: 'Next step', exact: true }).click();
+  await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   await expect(page.locator('.step-count')).toContainText('2 / 2 étapes');
-  await page.getByRole('button', { name: 'Previous step', exact: true }).click();
+  await page.getByRole('button', { name: 'Étape précédente', exact: true }).click();
   await expect(page.locator('.step-count')).toContainText('1 / 2 étapes');
-  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await page.getByRole('button', { name: 'Lire', exact: true }).click();
   await expect(page.locator('.step-count')).not.toContainText('1 / 2 étapes');
-  await page.getByRole('button', { name: 'Reset playback', exact: true }).click();
-  await page.getByRole('button', { name: 'Next step', exact: true }).click();
+  await page.getByRole('button', { name: 'Recommencer le parcours', exact: true }).click();
+  await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   await expect(page.locator('.graph-card.active')).toBeInViewport();
   await page.screenshot({ path: path.join(root, 'docs/data-flow-player.png') });
-  await page.getByRole('button', { name: 'Inspect Object / Function' }).click();
+  await page.getByRole('button', { name: 'Inspecter la définition' }).click();
   await expect(page.locator('.inspector h2')).toHaveText('drive');
   expect(errors).toEqual([]);
 });
 
 test('real branching and loops require explicit hypothetical paths', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Import repository', exact: true }).click();
+  await page.getByRole('button', { name: 'Importer un projet', exact: true }).click();
   await page.getByRole('button', { name: 'branching', exact: true }).click();
-  await page.getByRole('button', { name: 'Explore Data Flow', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end' }).click();
-  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'True', exact: true }).click();
+  await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await expect(page.getByRole('button', { name: 'Lire', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Vrai', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText("return 'accept'");
-  await page.getByRole('button', { name: 'Previous step', exact: true }).click();
-  await page.getByRole('button', { name: 'False', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end' }).click();
-  await page.getByRole('button', { name: 'Import repository', exact: true }).click();
+  await page.getByRole('button', { name: 'Étape précédente', exact: true }).click();
+  await page.getByRole('button', { name: 'Faux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await page.getByRole('button', { name: 'Importer un projet', exact: true }).click();
   await page.getByRole('button', { name: 'loops', exact: true }).click();
-  await page.getByRole('button', { name: 'Explore Data Flow', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end' }).click();
-  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Body (symbolic)', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end' }).click();
-  await expect(page.getByRole('button', { name: 'Body (symbolic)', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Exit', exact: true }).click();
+  await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await expect(page.getByRole('button', { name: 'Lire', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Itération symbolique', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await expect(page.getByRole('button', { name: 'Itération symbolique', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Sortie', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText('return total');
 });
 
 test('multi-module graph, filtering and resolved callee navigation', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore the example', exact: true }).click();
+  await page.getByRole('button', { name: 'Explorer l’exemple', exact: true }).click();
   await expect(page.locator('.repo-title')).toContainText('multi-module');
-  await page.getByLabel('Search symbols').fill('CreditService.process');
+  await page.getByLabel('Rechercher des symboles').fill('CreditService.process');
   await page.locator('.file-tree .search-result').click();
-  await page.getByRole('button', { name: 'Explore Data Flow', exact: true }).click();
-  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next step', exact: true }).click();
+  await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   await expect(page.locator('.inspector')).toContainText('normalize');
-  await page.getByRole('button', { name: 'Enter flow' }).click();
+  await page.getByRole('button', { name: 'Entrer dans le flux' }).click();
   await expect(page.locator('.breadcrumb')).toContainText('normalize');
-  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Précédent', exact: true }).click();
   await expect(page.locator('.breadcrumb')).toContainText('process');
 });
 
@@ -83,11 +83,11 @@ test('multi-module graph, filtering and resolved callee navigation', async ({ pa
 
 test('inspection preserves playback, saves/restores a session and exports its path', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore the example', exact: true }).click();
-  await page.getByLabel('Search symbols').fill('CreditService.process');
+  await page.getByRole('button', { name: 'Explorer l’exemple', exact: true }).click();
+  await page.getByLabel('Rechercher des symboles').fill('CreditService.process');
   await page.locator('.file-tree .search-result').click();
-  await page.getByRole('button', { name: 'Data Flow Player', exact: true }).click();
-  await page.getByRole('button', { name: 'Next step', exact: true }).click();
+  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   const step = await page.locator('.step-count').innerText();
   await page.locator('.graph-card').filter({ hasText: 'normalize' }).first().click();
   await expect(page.locator('.step-count')).toHaveText(step);
@@ -97,7 +97,7 @@ test('inspection preserves playback, saves/restores a session and exports its pa
   await page.getByLabel('Nom du parcours').fill('Test de restauration');
   await page.getByRole('button', { name: 'Enregistrer la session' }).click();
   await expect(page.getByRole('button', { name: 'Restaurer', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Fermer / Close' }).click();
+  await page.getByRole('button', { name: 'Fermer' }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Sessions', exact: true }).click();
   await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
@@ -112,8 +112,8 @@ test('inspection preserves playback, saves/restores a session and exports its pa
 
 test('global keyboard search, source references and narrow layout', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore the example', exact: true }).click();
-  await page.getByLabel('Search symbols').waitFor();
+  await page.getByRole('button', { name: 'Explorer l’exemple', exact: true }).click();
+  await page.getByLabel('Rechercher des symboles').waitFor();
   await page.keyboard.press('Control+k');
   await page.getByRole('combobox', { name: 'Recherche globale', exact: true }).fill('normalize');
   await expect(page.getByRole('listbox', { name: 'Résultats' }).getByRole('option').first()).toContainText('normalize');
@@ -129,15 +129,15 @@ test('global keyboard search, source references and narrow layout', async ({ pag
   await page.getByRole('button', { name: 'Détails', exact: true }).click();
   await page.getByRole('button', { name: 'Fermer les détails' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Toggle color theme' }).click();
+  await page.getByRole('button', { name: 'Changer de thème' }).click();
   await page.screenshot({ path: path.join(root, 'docs/v2-mobile-light.png') });
 });
 
 
 test('late symbol responses cannot replace the newer selection and direct links restore', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Import Python folder').setInputFiles(path.join(root, 'examples/object-oriented'));
-  await page.getByLabel('Search symbols').waitFor();
+  await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/object-oriented'));
+  await page.getByLabel('Rechercher des symboles').waitFor();
   let release: () => void = () => {};
   const waiting = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/symbols/*', async route => {
@@ -146,14 +146,14 @@ test('late symbol responses cannot replace the newer selection and direct links 
     if (body.symbol?.name === 'drive') { release(); await new Promise(resolve => setTimeout(resolve, 400)); }
     await route.fulfill({ response });
   });
-  await page.getByLabel('Search symbols').fill('Car.drive');
+  await page.getByLabel('Rechercher des symboles').fill('Car.drive');
   await page.locator('.file-tree .search-result').click();
   await waiting;
-  await page.getByLabel('Search symbols').fill('Engine.start');
+  await page.getByLabel('Rechercher des symboles').fill('Engine.start');
   await page.locator('.file-tree .search-result').click();
   await expect(page.locator('.inspector h2')).toHaveText('start');
-  await page.getByRole('button', { name: 'Data Flow Player', exact: true }).click();
-  await page.getByRole('button', { name: 'Next step', exact: true }).click();
+  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   const step = await page.locator('.step-count').innerText();
   await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   const link = await page.getByLabel('Lien direct local').inputValue();
@@ -166,7 +166,7 @@ test('missing snapshot links show an actionable message', async ({ page }) => {
   const saved = { format: 1, repository: '000000000000000000000000', snapshot: 'gone', state: { view: { mode: 'objects', selected: null, flowId: null, playback: null } } };
   await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify(saved)));
   await expect(page.getByRole('alert').first()).toContainText('Snapshot absent');
-  await expect(page.getByRole('button', { name: 'Import repository', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Importer un projet', exact: true })).toBeVisible();
 });
 
 test('real project snapshot, variable path and every export format', async ({ page }) => {
@@ -177,13 +177,13 @@ test('real project snapshot, variable path and every export format', async ({ pa
   const saved = { format: 1, repository, snapshot: (await snapshot.json()).repository.snapshot, state: { view: { mode: 'objects', selected: 'a9a01d55e14fca38908a2e9a', flowId: null, playback: null } } };
   await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify(saved)));
   await expect(page.locator('.inspector h2')).toHaveText('step');
-  await page.getByRole('button', { name: 'Data Flow Player', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end', exact: true }).click();
+  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText('self._done');
-  await page.getByRole('button', { name: 'False', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end', exact: true }).click();
-  await page.getByRole('button', { name: 'False', exact: true }).click();
-  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next step', exact: true }).click();
+  await page.getByRole('button', { name: 'Faux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin', exact: true }).click();
+  await page.getByRole('button', { name: 'Faux', exact: true }).click();
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText('decision_pd');
   await page.screenshot({ path: path.join(root, 'docs/v2-real-flow-dark.png') });
   await page.getByRole('button', { name: 'Exporter', exact: true }).click();
@@ -203,31 +203,147 @@ test('real project snapshot, variable path and every export format', async ({ pa
     if (format === 'MARKDOWN') expect(bytes.toString()).toContain('decision_pd');
   }
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Toggle color theme' }).click();
+  await page.getByRole('button', { name: 'Changer de thème' }).click();
+  await page.getByRole('button', { name: 'Autour de l’étape active', exact: true }).click();
+  await expect(page.locator('.graph-card.active')).toBeInViewport();
+  expect(await page.locator('.graph-card').count()).toBeLessThan(39);
   await page.screenshot({ path: path.join(root, 'docs/v2-real-flow-light.png') });
 });
 
 test('player preserves a recorded path and revisits decisions', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Import repository', exact: true }).click();
+  await page.getByRole('button', { name: 'Importer un projet', exact: true }).click();
   await page.getByRole('button', { name: 'branching', exact: true }).click();
-  await page.getByRole('button', { name: 'Explore Data Flow', exact: true }).click();
-  await page.getByRole('button', { name: 'Advance to next decision or end' }).click();
-  await page.getByRole('button', { name: 'True', exact: true }).click();
+  await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await page.getByRole('button', { name: 'Vrai', exact: true }).click();
   const count = await page.getByLabel('Aller à une étape du parcours').locator('option').count();
-  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.getByRole('button', { name: 'Revenir au début', exact: true }).click();
   await expect(page.getByLabel('Aller à une étape du parcours').locator('option')).toHaveCount(count);
   await page.getByLabel('Aller à une étape du parcours').selectOption(String(count - 1));
   await expect(page.locator('.operation-title')).toContainText("return 'accept'");
   await page.getByRole('button', { name: 'Décision précédente', exact: true }).click();
   await expect(page.getByText('Changer de branche', { exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(root, 'docs/player-workflow-desktop.png') });
-  await page.getByRole('button', { name: 'False', exact: true }).click();
+  await page.getByRole('button', { name: 'Faux', exact: true }).click();
   await expect(page.locator('.operation-title')).not.toContainText("return 'accept'");
   await expect(page.getByLabel('Aller à une étape du parcours').locator('option')).toHaveCount(count);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByLabel('Aller à une étape du parcours')).toBeInViewport();
-  await expect(page.getByRole('button', { name: 'Next step', exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Étape suivante', exact: true })).toBeInViewport();
   await expect(page.locator('.graph-card.active')).toBeInViewport();
   await page.screenshot({ path: path.join(root, 'docs/player-workflow-mobile.png') });
+});
+
+test('named branches compare persistently and selected nodes export together', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Importer un projet', exact: true }).click();
+  await page.getByRole('button', { name: 'branching', exact: true }).click();
+  await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await page.getByRole('button', { name: 'Vrai', exact: true }).click();
+  await page.getByRole('button', { name: 'Comparer les parcours', exact: true }).click();
+  await page.getByLabel('Nom du parcours à comparer').fill('Accepté');
+  await page.getByRole('button', { name: 'Enregistrer le parcours actuel' }).click();
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.getByRole('button', { name: 'Décision précédente', exact: true }).click();
+  await page.getByRole('button', { name: 'Faux', exact: true }).click();
+  await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  await page.getByRole('button', { name: 'Comparer les parcours', exact: true }).click();
+  await page.getByLabel('Nom du parcours à comparer').fill('Refusé');
+  await page.getByRole('button', { name: 'Enregistrer le parcours actuel' }).click();
+  await page.getByLabel('Parcours A', { exact: true }).selectOption('Accepté');
+  await page.getByLabel('Parcours B', { exact: true }).selectOption('Refusé');
+  await expect(page.getByRole('dialog')).toContainText("return 'accept'");
+  await expect(page.getByRole('dialog')).toContainText("return 'reject'");
+  await expect(page.getByRole('dialog')).toContainText('étapes initiales communes');
+  await page.screenshot({ path: path.join(root, 'docs/parcours-comparaison.png') });
+  await page.getByRole('button', { name: 'Restaurer Accepté', exact: true }).click();
+  await expect(page.locator('.operation-title')).toContainText("return 'accept'");
+  await page.getByRole('button', { name: 'Exporter', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Uniquement la sélection multiple/ }).check();
+  await page.locator('.export-node-list input').nth(0).check();
+  await page.locator('.export-node-list input').nth(1).check();
+  const pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'JSON', exact: true }).click();
+  const download = await pending;
+  const fs = await import('node:fs/promises');
+  const exported = JSON.parse(await fs.readFile((await download.path())!, 'utf8'));
+  expect(exported.nodes).toHaveLength(2);
+  expect(exported.metadata.selection).toHaveLength(2);
+  const ids = exported.nodes.map((n: { id: string }) => n.id);
+  expect(exported.edges.every((e: { source: string; target: string }) => ids.includes(e.source) && ids.includes(e.target))).toBe(true);
+  const link = await page.getByLabel('Lien direct local').inputValue();
+  await page.goto(link);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: 'Comparer les parcours', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Restaurer Accepté', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Restaurer Refusé', exact: true })).toBeVisible();
+});
+
+test('inspection pauses playback, callers restore filters, and variable evidence separates paths', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Explorer l’exemple', exact: true }).click();
+  await page.getByLabel('Rechercher des symboles').fill('CreditService.process');
+  await page.locator('.file-tree .search-result').click();
+  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Lire', exact: true }).click();
+  await page.locator('.graph-card').filter({ hasText: 'normalize' }).first().click();
+  await expect(page.getByRole('button', { name: 'Lire', exact: true })).toBeVisible();
+  const step = await page.locator('.step-count').innerText();
+  await page.waitForTimeout(1200); // Cross an autoplay interval to prove that inspection paused it.
+  await expect(page.locator('.step-count')).toHaveText(step);
+  await page.getByRole('button', { name: 'Revenir à l’étape active' }).click();
+  await page.getByRole('button', { name: 'Autour de l’étape active', exact: true }).click();
+  await page.getByLabel('Liens du flux').selectOption('both');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
+  const callerStep = await page.locator('.step-count').innerText();
+  await page.getByRole('button', { name: 'Entrer dans le flux' }).click();
+  await expect(page.getByRole('navigation', { name: 'Pile des appels' })).toContainText('process');
+  await expect(page.getByRole('navigation', { name: 'Pile des appels' })).toContainText('normalize');
+  await page.getByLabel('Liens du flux').selectOption('data');
+  await page.getByRole('button', { name: /Retour à l’appelant/ }).click();
+  await expect(page.locator('.step-count')).toHaveText(callerStep);
+  await expect(page.getByLabel('Liens du flux')).toHaveValue('both');
+  await expect(page.getByRole('button', { name: 'Autour de l’étape active' })).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.metadata-row button').first().click();
+  await expect(page.getByRole('dialog')).toContainText('Sur le parcours choisi');
+  await expect(page.getByRole('dialog')).toContainText('Possibilités statiques');
+  await page.screenshot({ path: path.join(root, 'docs/variables-parcours.png') });
+});
+
+test('source declarations and ambiguous callable aliases offer explicit targets', async ({ page }) => {
+  const base = 'http://127.0.0.1:8000/api';
+  const source = 'def first(value):\n    return value\ndef second(value):\n    return value + 1\ndef caller(flag, value):\n    target = first\n    if flag:\n        target = second\n    return target(value)\n';
+  const job = await (await page.request.post(`${base}/repositories/import`, { data: { name: 'semantic-navigation-test', files: { 'main.py': source } } })).json();
+  let repository = '';
+  await expect.poll(async () => { const result = await (await page.request.get(`${base}/jobs/${job.id}`)).json(); repository = result.repository_id; return result.status; }).toBe('completed');
+  const summary = await (await page.request.get(`${base}/repositories/${repository}`)).json();
+  const symbols = await (await page.request.get(`${base}/repositories/${repository}/symbols`)).json();
+  const caller = symbols.items.find((n: { name: string }) => n.name === 'caller');
+  const saved = { format: 1, repository, snapshot: summary.repository.snapshot, state: { view: { mode: 'objects', selected: caller.id, flowId: null, playback: null } } };
+  await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify(saved)));
+  await expect(page.locator('.inspector h2')).toHaveText('caller');
+  const editor = page.getByRole('textbox', { name: 'Editor content', exact: true });
+  await editor.press('Control+Home');
+  for (let i = 0; i < 4; i++) await editor.press('ArrowRight');
+  await editor.press('F12');
+  await expect(page.getByRole('dialog')).toContainText('main.first');
+  await expect(page.getByRole('dialog')).toContainText('déclaration');
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await editor.press('Control+Home');
+  for (let i = 0; i < 10; i++) await editor.press('ArrowRight');
+  await editor.press('F12');
+  await expect(page.getByRole('dialog')).toContainText('main.first.value');
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await editor.press('Control+Home');
+  for (let i = 0; i < 8; i++) await editor.press('ArrowDown');
+  await editor.press('Home');
+  for (let i = 0; i < 11; i++) await editor.press('ArrowRight');
+  await editor.press('F12');
+  await expect(page.getByRole('dialog')).toContainText('choisissez explicitement');
+  await expect(page.getByRole('dialog')).toContainText('main.first');
+  await expect(page.getByRole('dialog')).toContainText('main.second');
+  await expect(page.locator('.inspector h2')).toHaveText('caller');
 });

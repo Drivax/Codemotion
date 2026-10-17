@@ -32,6 +32,12 @@ CodeMotion analyse l’AST : il **n’exécute jamais le code du projet importé
 
 Guide des parcours, API et formats : [Exploration V2](docs/exploration-v2.md). Résultats et captures : [Validation V2](docs/validation-v2.md). Les limites restantes sont détaillées dans [limitations](docs/limitations.md).
 
+## Parcours avancés
+
+Le lecteur affiche désormais une pile d’appels, une vue **Autour de l’étape active**, le suivi des variables sur le parcours et la **comparaison de deux parcours nommés**. L’inspection met la lecture en pause. Les déclarations et paramètres sont navigables avec F12. L’export accepte plusieurs nœuds cochés. Commandes et infobulles sont en français.
+
+Voir le [guide d’utilisation](docs/exploration-v2.md) et le [rapport de validation du 17 octobre](docs/validation-workflow.md).
+
 ## Installation
 
 Prérequis : **Python 3.11+**, **Node.js 24**, npm. Internet est nécessaire pour installer les dépendances ; après installation, les dossiers locaux et les exemples fonctionnent hors ligne. Aucun compte, LLM, abonnement, Docker ou clé API.

@@ -15,4 +15,4 @@ Parcours hypothétique, code non exécuté. 2 étapes parcourues, 11 opérations
 
 Les branches ne sont pas évaluées et les valeurs runtime restent indisponibles.
 
-Filtres : {"edgeMode":"control","variable":"","orientation":"TB","follow":true,"hideSelf":true,"light":false}
+Filtres : {"edgeMode":"control","variable":"","orientation":"TB","follow":true,"hideSelf":true,"light":false,"nearby":false,"dimSecondary":true}

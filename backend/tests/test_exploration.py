@@ -184,3 +184,15 @@ def test_hierarchy_aggregates_parallel_edges_without_external_false_targets():
     edge = graph["edges"][0]
     assert edge.kind == "GROUPED" and edge.provenance
     assert len(q.group_relations("a", "b")["items"]) >= 2
+
+
+def test_declaration_tokens_parameters_unicode_and_decorators():
+    source = "@decorate\nasync def café(\n    entrée: int,\n    *, option=True\n):\n    return entrée\n\nclass Sample:\n    def method(self, value):\n        return value\n"
+    a = AnalysisEngine().analyze({"main.py": source})
+    q = QueryIndex(a)
+    for line, column, name, kind in [(2, 10, "café", "Function"), (3, 5, "entrée", "Parameter"), (4, 8, "option", "Parameter"), (8, 7, "Sample", "Class"), (9, 9, "method", "Method"), (9, 21, "value", "Parameter")]:
+        result = q.semantic("main.py", line, column)
+        assert [(n.name, n.kind) for n in result["targets"]] == [(name, kind)]
+        assert result["references"][0].access == "declaration"
+    assert not q.semantic("main.py", 2, 1)["targets"]
+    assert any(r.access == "read" for r in q.semantic("main.py", 3, 5)["usages"])

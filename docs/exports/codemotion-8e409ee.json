@@ -16,6 +16,8 @@
       "follow": true,
       "hideSelf": true,
       "light": false,
+      "nearby": false,
+      "dimSecondary": true,
       "graphScope": {
         "focus": null,
         "direction": "both",
@@ -30,10 +32,11 @@
       }
     },
     "truncated": false,
+    "limitations": [],
     "nodes": 39,
     "edges": 43,
-    "uncertainty": "Static, incomplete; no runtime execution.",
-    "created": "2026-10-13T15:48:38.397Z"
+    "uncertainty": "Analyse statique partielle ; aucun code exécuté.",
+    "created": "2026-10-17T16:05:29.242Z"
   },
   "nodes": [
     {

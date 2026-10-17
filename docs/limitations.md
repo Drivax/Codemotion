@@ -28,14 +28,17 @@
 ## Interface et analyse complémentaire
 
 - Chaque vue réseau charge un sous-graphe : 60 nœuds initialement, jusqu’à 1 000 par requête de voisinage. La recherche couvre tout le snapshot ; la troncature est signalée. Pas de virtualisation complète de toutes les métadonnées de l’arbre.
-- Navigation sémantique conservatrice des usages `Name`/`Attribute`. Certains tokens de déclaration et paramètres n’ont pas de référence dédiée ; l’arbre et la recherche permettent d’ouvrir leur définition.
+- Navigation sémantique des usages `Name`/`Attribute`, noms de classes/fonctions/méthodes et paramètres déclarés, avec coordonnées UTF-16. Les cibles ambiguës restent explicites ; les constructions dynamiques non résolues ne sont pas inventées. Les déclarations sont indexées à partir du source du snapshot, y compris pour les archives existantes.
 - Les définitions atteignantes du graphe sont statiques ; les versions montrées par le lecteur suivent le parcours choisi. Pas de propagation complète des alias/valeurs/mutations runtime.
 - 8 appels imbriqués, 2 000 étapes de parcours, 40 positions d’historique. Les boucles sont des choix hypothétiques explicites.
 - Chemins : profondeur maximale 12, 100 résultats, 10 000 états explorés. Impact : profondeur maximale 8 et 1 000 résultats ; tests liés identifiés par noms de fichiers, sans preuve de couverture.
 - Cycles d’imports observés sans classification spécifique de `TYPE_CHECKING`. Les alertes de taille/couplage et symboles potentiellement inutilisés sont heuristiques, pas des défauts certains.
 - Comparaison par fichier, nom qualifié et type de symbole ; renommages/déplacements apparaissent comme suppression/ajout. Les impacts affichés du diff sont bornés.
-- PNG/SVG sont des rendus simplifiés avec positions et métadonnées, pas des captures pixel-identiques du canvas. PNG limité à 8 192 pixels par côté et 32 mégapixels. Export de la vue ou du seul nœud sélectionné ; pas de sélection multiple arbitraire.
-- Interface mixte français/anglais : pas de sélecteur bilingue complet. La navigation clavier native/dialogues est vérifiée, sans audit exhaustif de lecteur d’écran.
+- PNG/SVG sont des rendus simplifiés avec positions et métadonnées, pas des captures pixel-identiques du canvas. PNG limité à 8 192 pixels par côté et 32 mégapixels. Export de la vue ou de plusieurs nœuds cochés et de leurs liens internes. En sélection multiple, Markdown décrit le sous-graphe ; sinon il décrit le parcours complet du lecteur.
+- Commandes, infobulles et descriptions du lecteur en français. Le code Python, les identifiants de schéma et certains diagnostics techniques bruts restent dans leur langue d’origine. Pas de sélecteur bilingue ; pas d’audit exhaustif de lecteur d’écran.
 - Validation observée sur Windows/Chromium ; Linux/macOS non exécutés dans cette session.
 
-Priorités restantes : CFG des exceptions, MRO/réexports, alias et bindings sensibles au chemin, références sur tous les tokens de déclaration, virtualisation complète, traduction intégrale et validation multiplateforme.
+Priorités restantes : CFG des exceptions, MRO/réexports, alias et bindings sensibles au chemin, virtualisation complète, localisation des diagnostics techniques et validation multiplateforme.
+
+- Comparaison de parcours limitée à une même fonction et un même snapshot : 20 parcours nommés maximum, 2 000 étapes chacun, quota localStorage du navigateur. Le diff compte les passages par opération et compare les dernières définitions traversées ; il ne compare pas des valeurs runtime. Les parcours sont indépendants des sessions et ne sont pas inclus dans les liens directs.
+- Le mode autour de l’étape active conserve deux liens de contrôle de distance (entrants et sortants). Les liens de données entre ces opérations restent filtrables ; ce sous-graphe est signalé comme partiel à l’export.

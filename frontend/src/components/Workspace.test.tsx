@@ -20,17 +20,17 @@ it('opens the selected method from the flow tab, including after another flow wa
     return data as never;
   });
   render(<Workspace />);
-  fireEvent.click(screen.getByRole('button', { name: 'Explore the example' }));
-  const tab = await screen.findByRole('button', { name: 'Data Flow Player' });
+  fireEvent.click(screen.getByRole('button', { name: 'Explorer l’exemple' }));
+  const tab = await screen.findByRole('button', { name: 'Lecteur de flux' });
   expect(tab).toBeDisabled();
-  fireEvent.change(screen.getByRole('textbox', { name: 'Search symbols' }), { target: { value: 'drive' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Rechercher des symboles' }), { target: { value: 'drive' } });
   for (const method of ['drive', 'stop']) {
-    fireEvent.change(screen.getByRole('textbox', { name: 'Search symbols' }), { target: { value: method } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Rechercher des symboles' }), { target: { value: method } });
     fireEvent.click(screen.getByRole('button', { name: new RegExp(method + '.*test.py') }));
     expect(tab).toBeEnabled();
     fireEvent.click(tab);
     expect(await screen.findByText(method + ' input')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Object Inspector' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Inspecteur d’objets' }));
   }
 });
 

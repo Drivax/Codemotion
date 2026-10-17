@@ -6,21 +6,21 @@ export function download(name: string, text: string | Blob, type = 'text/plain')
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const xml = (s: string) => s.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]!));
-export async function exportView(format: string, summary: Summary, graph: Graph, flow: Flow | null, options: GraphOptions, canvas?: CanvasState, selected?: string | null, selectionOnly = false, playback?: Playback | null, functionName?: string) {
+export async function exportView(format: string, summary: Summary, graph: Graph, flow: Flow | null, options: GraphOptions, canvas?: CanvasState, selected?: string | null, selectionOnly = false, playback?: Playback | null, functionName?: string, selectedIds?: string[], fullFlow?: Flow | null) {
   const nodes = flow ? flow.operations.map(o => ({ id: o.id, name: o.expression, kind: o.kind, source: o.source })) : graph.nodes;
-  const chosen = selectionOnly ? nodes.filter(n => n.id === selected) : nodes;
+  const chosen = selectionOnly ? nodes.filter(n => (selectedIds || (selected ? [selected] : [])).includes(n.id)) : nodes;
   const ids = new Set(chosen.map(n => n.id));
   const edges = (flow ? flow.edges.filter(e => (options.edgeMode === 'both' || e.kind === options.edgeMode) && (e.kind !== 'data' || ((!options.variable || e.label === options.variable) && (!options.hideSelf || e.label !== 'self')))) : graph.edges).filter(e => ids.has(e.source) && ids.has(e.target));
-  const meta = { repository: summary.repository, engine: summary.engine_version, schema_version: '2.0', scope: selectionOnly ? 'selected node' : 'displayed graph', filters: { ...options, graphScope: graph.scope }, truncated: flow ? flow.limitations.length > 0 : !!graph.truncated, nodes: chosen.length, edges: edges.length, uncertainty: 'Static, incomplete; no runtime execution.', created: new Date().toISOString() };
+  const meta = { repository: summary.repository, engine: summary.engine_version, schema_version: '2.0', scope: selectionOnly ? 'selected nodes' : 'displayed graph', filters: { ...options, graphScope: graph.scope }, truncated: flow ? flow.operations.length < (fullFlow?.operations.length || flow.operations.length) : !!graph.truncated, limitations: flow?.limitations || [], selection: selectionOnly ? chosen.map(n => n.id) : undefined, nodes: chosen.length, edges: edges.length, uncertainty: 'Analyse statique partielle ; aucun code exécuté.', created: new Date().toISOString() };
   const name = `codemotion-${summary.repository.snapshot.slice(0, 7)}`;
   if (format === 'json') return download(name + '.json', JSON.stringify({ metadata: meta, nodes: chosen, edges }, null, 2), 'application/json');
   const index = new Map(chosen.map((n, i) => [n.id, `n${i}`]));
   const mermaid = `flowchart ${options.orientation}\n` + chosen.map(n => `  ${index.get(n.id)}["${n.name.replace(/[^\p{L}\p{N} ._:()=-]/gu, ' ').slice(0, 120)}"]`).join('\n') + '\n' + edges.map(e => `  ${index.get(e.source)} -->|"${(e.label || e.kind).replace(/[^\p{L}\p{N} ._:=-]/gu, ' ')}"| ${index.get(e.target)}`).join('\n');
   if (format === 'mermaid') return download(name + '.mmd', `%% ${JSON.stringify(meta)}\n${mermaid}`);
-  if (format === 'markdown' && flow && playback) {
+  if (format === 'markdown' && flow && playback && !selectionOnly) {
     const lines = playback.trail.slice(0, playback.index + 1).map((id, i, trail) => {
-      const op = flow.operations.find(o => o.id === id)!;
-      const branch = i ? flow.edges.find(e => e.kind === 'control' && e.source === trail[i - 1] && e.target === id)?.label : '';
+      const op = (fullFlow || flow).operations.find(o => o.id === id)!;
+      const branch = i ? (fullFlow || flow).edges.find(e => e.kind === 'control' && e.source === trail[i - 1] && e.target === id)?.label : '';
       return `${i + 1}. ${branch ? '**Décision hypothétique : ' + branch + '** — ' : ''}${op.expression.replace(/[\r\n]/g, ' ')} — ${op.source.file}:${op.source.start_line}`;
     });
     return download(name + '-parcours.md', `# Parcours : ${functionName || flow.function_id}\n\nProjet : ${summary.repository.name}\nSnapshot : ${summary.repository.snapshot}\nRévision : ${summary.repository.revision || 'locale'}\nMoteur : ${summary.engine_version}\n\nParcours hypothétique, code non exécuté. ${playback.index + 1} étapes parcourues, ${flow.operations.length} opérations dans la fonction.\n\n${lines.join('\n')}\n\n## Limites\n\n${flow.limitations.join('\n')}\nLes branches ne sont pas évaluées et les valeurs runtime restent indisponibles.\n\nFiltres : ${JSON.stringify(meta.filters)}\n`);

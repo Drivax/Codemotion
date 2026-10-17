@@ -1,9 +1,11 @@
 """Bounded, source-grounded queries over a snapshot. No imported code is executed."""
+import io
+import tokenize
 from collections import Counter, defaultdict, deque
 from pathlib import PurePosixPath
 from typing import Any
 from app.analysis.ast_parser import stable_id
-from app.models.schema import Analysis, GraphEdge, GraphNode, Resolution
+from app.models.schema import Analysis, GraphEdge, GraphNode, Reference, Resolution, SourceLocation
 
 STRUCTURE = {"Class", "Function", "Method", "Module", "ExternalDependency", "Unknown"}
 DEPENDENCIES = {"CALLS", "INSTANTIATES", "IMPORTS", "INHERITS"}
@@ -28,7 +30,45 @@ class QueryIndex:
         for e in self.structural:
             self.outgoing[e.source].append(e)
             self.incoming[e.target].append(e)
-        for ref in analysis.references:
+        declarations = []
+        by_file = defaultdict(list)
+        for node in analysis.nodes:
+            if node.source and node.kind in {"Class", "Function", "Method", "Parameter"}:
+                by_file[node.source.file].append(node)
+        for file, nodes in by_file.items():
+            source = self.files[file].source or ""
+            lines = source.splitlines()
+            tokens = []
+            try:
+                tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+            except (tokenize.TokenError, IndentationError, SyntaxError):
+                continue
+            names = defaultdict(list)
+            previous = ""
+            for token in tokens:
+                if token.type == tokenize.NAME:
+                    names[(token.start[0], token.string)].append((token, previous))
+                if token.type not in {tokenize.COMMENT, tokenize.NL, tokenize.INDENT, tokenize.DEDENT}:
+                    previous = token.string
+            for node in nodes:
+                span = node.source
+                if span is None:
+                    continue
+                for token, before in names[(span.start_line, node.name)]:
+                    line = lines[token.start[0] - 1]
+                    byte_column = len(line[:token.start[1]].encode("utf-8"))
+                    if node.kind == "Parameter":
+                        if byte_column != span.start_column:
+                            continue
+                    elif before not in {"def", "class"}:
+                        continue
+                    start = len(line[:token.start[1]].encode("utf-16-le")) // 2
+                    end = len(line[:token.end[1]].encode("utf-16-le")) // 2
+                    declarations.append(Reference(scope=node.parent or node.id, name=node.name,
+                        source=SourceLocation(file=file, start_line=token.start[0], end_line=token.end[0], start_column=start, end_column=end),
+                        targets=[node.id], resolution=Resolution.resolved, access="declaration"))
+                    break
+        for ref in [*analysis.references, *declarations]:
             self.references[ref.source.file].append(ref)
             for target in ref.targets:
                 self.by_target[target].append(ref)

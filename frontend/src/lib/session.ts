@@ -1,6 +1,6 @@
 export interface CanvasState { positions: Record<string, {x:number;y:number}>; viewport: {x:number;y:number;zoom:number} }
-export interface GraphOptions { edgeMode: 'control'|'data'|'both'; variable: string; orientation: 'TB'|'LR'; follow: boolean; hideSelf: boolean; light: boolean }
-export const defaultGraphOptions: GraphOptions = { edgeMode:'control',variable:'',orientation:'TB',follow:true,hideSelf:true,light:false };
+export interface GraphOptions { edgeMode: 'control'|'data'|'both'; variable: string; orientation: 'TB'|'LR'; follow: boolean; hideSelf: boolean; light: boolean; nearby?: boolean; dimSecondary?: boolean }
+export const defaultGraphOptions: GraphOptions = { edgeMode:'control',variable:'',orientation:'TB',follow:true,hideSelf:true,light:false,nearby:false,dimSecondary:true };
 export interface StoredSession { format:1; repository:string; snapshot:string; title:string; savedAt:string; state:unknown }
 const KEY='codemotion.sessions.v1';
 export function readSessions(): StoredSession[] {
@@ -19,6 +19,7 @@ export function validateSessionState(value: unknown): asserts value is Record<st
   if (view.mode === 'flow' && (!view.flowId || !object(view.playback))) fail();
   for (const name of ['expanded','kinds','relations','favorites']) if (value[name] !== undefined && (!Array.isArray(value[name]) || !(value[name] as unknown[]).every(v => typeof v === 'string'))) fail();
   if (value.options !== undefined) { const o = value.options; if (!object(o) || !['control','data','both'].includes(String(o.edgeMode)) || !['TB','LR'].includes(String(o.orientation)) || typeof o.variable !== 'string' || ['follow','hideSelf','light'].some(k => typeof o[k] !== 'boolean')) fail(); }
+  if (value.options && typeof value.options === 'object') { for (const key of ['nearby','dimSecondary']) { const option = (value.options as Record<string, unknown>)[key]; if (option !== undefined && typeof option !== 'boolean') fail(); } }
   if (value.panels !== undefined && (!object(value.panels) || ['explorer','inspector','source'].some(k => typeof (value.panels as Record<string, unknown>)[k] !== 'boolean'))) fail();
   if (value.canvases !== undefined) {
     if (!object(value.canvases)) return fail();
