@@ -19,7 +19,7 @@ class AnalysisEngine:
         files = loader.load(files)
         discovered = time.perf_counter()
         digest = snapshot(files)
-        parsed = ASTParser().parse(files)
+        parsed = ASTParser().parse({path: source for path, source in files.items() if path.endswith(".py")})
         parsed_at = time.perf_counter()
         resolver = ImportResolver(parsed)
         resolver.resolve_imports()
@@ -29,7 +29,7 @@ class AnalysisEngine:
         ClassAnalyzer(resolver).analyze()
         resolved_at = time.perf_counter()
         result = Analysis(repository=Repository(id=digest[:24], name=name[:120], revision=revision, snapshot=digest),
-            files=[FileRecord(path=path, package=resolver.nodes[stable_id(path, "module")].qualified_name,
+            files=[FileRecord(path=path, package=resolver.nodes[stable_id(path, "module")].qualified_name if path.endswith(".py") else "",
                 source=source, parsed=path in parsed.trees) for path, source in files.items()],
             nodes=parsed.nodes, diagnostics=parsed.diagnostics)
         edges: dict[str, GraphEdge] = {}

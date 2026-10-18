@@ -7,6 +7,9 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.request
+import urllib.error
+import webbrowser
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -71,8 +74,27 @@ def main():
             if job:
                 job.assign(process)
         print("CodeMotion: http://127.0.0.1:3000 | API: http://127.0.0.1:8000/docs | Ctrl+C stops both services", flush=True)
+        ready = set()
+        started = time.monotonic()
         while not stopping and all(p.poll() is None for p in processes):
-            time.sleep(0.3)
+            for label, url in [("API", "http://127.0.0.1:8000/api/health"), ("Interface", "http://127.0.0.1:3000")]:
+                if label in ready:
+                    continue
+                try:
+                    with urllib.request.urlopen(url, timeout=1) as response:
+                        if response.status == 200:
+                            ready.add(label)
+                            print(f"{label} disponible : {url}", flush=True)
+                except (OSError, urllib.error.URLError):
+                    pass
+            if len(ready) == 2 and "--open" in sys.argv:
+                webbrowser.open("http://127.0.0.1:3000")
+                sys.argv.remove("--open")
+            if len(ready) < 2 and time.monotonic() - started > 90:
+                raise SystemExit("Demarrage incomplet apres 90 secondes. Consultez les erreurs ci-dessus ; les services de ce lancement vont etre arretes.")
+            time.sleep(0.3 if len(ready) < 2 else 1)
+        if not stopping:
+            raise SystemExit("Un service s'est arrete. Consultez les erreurs ci-dessus.")
     finally:
         stop()
 

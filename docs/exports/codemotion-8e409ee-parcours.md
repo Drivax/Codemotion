@@ -22,4 +22,4 @@ Parcours hypothétique, code non exécuté. 9 étapes parcourues, 39 opérations
 
 Les branches ne sont pas évaluées et les valeurs runtime restent indisponibles.
 
-Filtres : {"edgeMode":"control","variable":"","orientation":"TB","follow":true,"hideSelf":true,"light":false,"nearby":false,"dimSecondary":true,"graphScope":{"focus":null,"direction":"both","depth":1,"relations":["CALLS","CONTAINS","IMPORTS","INHERITS","INSTANTIATES"]}}
+Filtres : {"edgeMode":"control","variable":"","orientation":"TB","follow":true,"hideSelf":true,"light":false,"nearby":false,"dimSecondary":true}

@@ -53,10 +53,10 @@ class SnapshotArchive:
                 return None
             try:
                 payload = json.loads(path.read_bytes())
-                if payload.get("engine_version") != "2.0":
+                if payload.get("engine_version") not in {"2.0", "2.1"}:
                     return None
                 result = Analysis.model_validate(payload)
-                if result.repository.id != identifier or result.engine_version != "2.0":
+                if result.repository.id != identifier or result.engine_version not in {"2.0", "2.1"}:
                     return None
                 return result
             except (ValueError, OSError):

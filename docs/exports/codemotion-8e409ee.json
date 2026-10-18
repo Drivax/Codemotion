@@ -17,26 +17,14 @@
       "hideSelf": true,
       "light": false,
       "nearby": false,
-      "dimSecondary": true,
-      "graphScope": {
-        "focus": null,
-        "direction": "both",
-        "depth": 1,
-        "relations": [
-          "CALLS",
-          "CONTAINS",
-          "IMPORTS",
-          "INHERITS",
-          "INSTANTIATES"
-        ]
-      }
+      "dimSecondary": true
     },
     "truncated": false,
     "limitations": [],
     "nodes": 39,
     "edges": 43,
     "uncertainty": "Analyse statique partielle ; aucun code exécuté.",
-    "created": "2026-10-17T16:05:29.242Z"
+    "created": "2026-10-18T14:45:21.293Z"
   },
   "nodes": [
     {

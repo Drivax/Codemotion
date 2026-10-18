@@ -62,11 +62,11 @@ class RepositoryLoader:
             path = safe_path(raw)
             ignored = any(part in DEFAULT_IGNORES for part in PurePosixPath(path).parts)
             ignored |= any(path.startswith(base) and spec.match_file(path[len(base):]) for base, spec in specs)
-            if ignored or not path.endswith(".py") or "\x00" in content:
+            if ignored or not path.lower().endswith((".py", ".md", ".markdown")) or "\x00" in content:
                 self.ignored.append(path)
                 continue
             result[path] = content
-        if not result:
+        if not any(path.endswith(".py") for path in result):
             raise ValueError("No Python files found after ignore rules")
         return result
 
@@ -94,14 +94,16 @@ class RepositoryLoader:
                 if len(parts) < 2:
                     continue
                 path = "/".join(parts[1:])
-                if not (path.endswith(".py") or PurePosixPath(path).name == ".gitignore"):
+                if not (path.lower().endswith((".py", ".md", ".markdown")) or PurePosixPath(path).name == ".gitignore"):
                     continue
                 if info.file_size > self.limits.max_file_bytes:
                     raise ValueError("File size limit exceeded")
                 if path in files:
                     raise ValueError("Duplicate archive path")
                 raw = archive.read(info)
-                encoding, _ = tokenize.detect_encoding(io.BytesIO(raw).readline)
+                encoding = "utf-8-sig"
+                if path.endswith(".py"):
+                    encoding, _ = tokenize.detect_encoding(io.BytesIO(raw).readline)
                 files[path] = raw.decode(encoding)
         return self.load(files)
 

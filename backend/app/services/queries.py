@@ -113,7 +113,7 @@ class QueryIndex:
         groups: dict[str, GraphNode] = {}
         file_group = {}
         for file in sorted(self.files):
-            if not file.startswith(base):
+            if not file.endswith(".py") or not file.startswith(base):
                 continue
             remainder = file[len(base):]
             part = remainder.split("/")[0]
@@ -340,15 +340,35 @@ class QueryIndex:
         def body(index, n):
             return "\n".join(index.files[n.source.file].source.splitlines()[n.source.start_line - 1:n.source.end_line])
         changed = [{"before": left[k], "after": right[k], "signature_changed": left[k].signature != right[k].signature}
-                   for k in left.keys() & right.keys() if body(self, left[k]) != body(other, right[k]) or left[k].signature != right[k].signature]
+                   for k in sorted(left.keys() & right.keys()) if body(self, left[k]) != body(other, right[k]) or left[k].signature != right[k].signature]
+        compatibility = []
+        for key, node in sorted(left.items()):
+            if node.kind not in {"Function", "Method"}:
+                continue
+            target = right.get(key)
+            old_flow = self.analysis.flows.get(node.id)
+            new_flow = other.analysis.flows.get(target.id) if target else None
+            # IDs alone are unsafe: operation IDs historically depend on AST traversal order.
+            def fingerprint(flow):
+                if flow is None:
+                    return None
+                return (flow.entry, [(o.id, o.kind, o.expression, o.reads, o.writes) for o in sorted(flow.operations, key=lambda o: o.id)],
+                        sorted((e.source, e.target, e.kind, e.label) for e in flow.edges))
+            same = bool(old_flow and new_flow and fingerprint(old_flow) == fingerprint(new_flow))
+            compatibility.append({"before_id": node.id, "after_id": target.id if target else None,
+                                  "name": node.qualified_name, "compatible": same,
+                                  "reason": "Flux identique" if same else "Fonction supprimée ou renommée" if not target else "Flux modifié ou indisponible : parcours à reconstruire"})
         def edge_keys(index):
             return {(index.nodes[e.source].qualified_name, index.nodes[e.target].qualified_name, e.kind, str(e.resolution)) for e in index.structural if e.kind != "CONTAINS"}
         le, re = edge_keys(self), edge_keys(other)
         added = [right[k] for k in sorted(right.keys() - left.keys())]
         removed = [left[k] for k in sorted(left.keys() - right.keys())]
+        changed_functions = [c for c in changed if c["before"].kind in {"Function", "Method"}]
+        previous_functions = [c["before"] for c in changed_functions] + [n for n in removed if n.kind in {"Function", "Method"}]
         return {"before": self.analysis.repository, "after": other.analysis.repository, "engine_version": self.analysis.engine_version,
-                "added": added, "removed": removed, "changed": changed,
+                "added": added, "removed": removed, "changed": changed, "path_compatibility": compatibility,
+                "previous_impacts": [{"symbol": n, "impact": self.impact(n.id, limit=50)} for n in previous_functions[:50]],
                 "relations_added": sorted(re - le), "relations_removed": sorted(le - re),
-                "impacts": [{"symbol": c["after"], "impact": other.impact(c["after"].id, limit=50)} for c in changed[:50]],
-                "impact_truncated": len(changed) > 50,
+                "impacts": [{"symbol": c["after"], "impact": other.impact(c["after"].id, limit=50)} for c in changed_functions[:50]],
+                "impact_truncated": len(changed_functions) > 50 or len(previous_functions) > 50,
                 "limitation": LIMITATION + " Appariement par fichier, nom qualifié et type ; renommages présentés comme ajout/suppression."}

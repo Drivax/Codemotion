@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from app.analysis.repository_loader import Limits, safe_path
+from app.analysis.repository_loader import Limits, safe_path, RepositoryLoader, snapshot
+from app.models.schema import Analysis
 from app.services.jobs import JobStore
 from app.services.archive import SnapshotArchive
 from app.services.exploration import exploration_router
@@ -202,6 +203,52 @@ def example(name: Literal["basic-functions", "object-oriented", "branching", "lo
 @app.get("/api/snapshots")
 def snapshots():
     return archive.list()
+
+
+@app.post("/api/snapshots/restore")
+def restore_snapshot(payload: Analysis):
+    """Restore serialized data only. Never import or execute its source files."""
+    try:
+        files = RepositoryLoader().load({f.path: f.source for f in payload.files})
+        digest = snapshot(files)
+        if len(files) != len(payload.files) or digest != payload.repository.snapshot or digest[:24] != payload.repository.id:
+            raise ValueError("Snapshot content does not match its identifier")
+        if payload.engine_version not in {"2.0", "2.1"}:
+            raise ValueError("Unsupported analysis engine version")
+        ids = {n.id for n in payload.nodes}
+        if len(ids) != len(payload.nodes) or any(e.source not in ids or e.target not in ids for e in payload.edges):
+            raise ValueError("Invalid graph references")
+        if any(n.parent and n.parent not in ids for n in payload.nodes):
+            raise ValueError("Invalid parent reference")
+        parents = {n.id: n.parent for n in payload.nodes}
+        checked: set[str] = set()
+        for node in payload.nodes:
+            chain: set[str] = set()
+            current: str | None = node.id
+            while current and current not in checked:
+                if current in chain:
+                    raise ValueError("Cyclic parent references")
+                chain.add(current)
+                current = parents[current]
+            checked.update(chain)
+            if node.source and node.source.file not in files:
+                raise ValueError("Source outside snapshot")
+        for function_id, graph in payload.flows.items():
+            operations = {o.id for o in graph.operations}
+            if (function_id not in ids or graph.function_id != function_id or graph.entry not in operations
+                    or len(operations) != len(graph.operations)
+                    or any(e.source not in operations or e.target not in operations for e in graph.edges)
+                    or any(o.source.file not in files or any(c not in ids for c in o.calls) for o in graph.operations)):
+                raise ValueError("Invalid flow references")
+        existing = archive.get(payload.repository.id)
+        if existing:
+            if existing.engine_version != payload.engine_version:
+                raise ValueError("Snapshot already present with a different engine version; existing work was preserved")
+            return {"restored": payload.repository.id, "existing": True}
+        archive.put(payload)
+        return {"restored": payload.repository.id, "existing": False}
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
 
 
 @app.delete("/api/snapshots/{identifier}")

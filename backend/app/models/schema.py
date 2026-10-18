@@ -101,7 +101,7 @@ class Reference(BaseModel):
 
 class Analysis(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
-    engine_version: str = "2.0"
+    engine_version: str = "2.1"
     references: list[Reference] = Field(default_factory=list)
     repository: Repository
     files: list[FileRecord] = Field(default_factory=list)

@@ -71,7 +71,9 @@ class DataFlowAnalyzer:
     def link(self, source: str, target: str, label=""):
         self.links.append(FlowLink(source=source, target=target, label=label))
 
-    def block(self, statements: list[ast.stmt], after: str, loop: tuple[str, str] | None = None) -> str:
+    def block(self, statements: list[ast.stmt], after: str, loop: tuple[str, str] | None = None, returns: str | None = None, raises: str | None = None) -> str:
+        returns = self.exit if returns is None else returns
+        raises = self.exit if raises is None else raises
         next_id = after
         for statement in reversed(statements):
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -80,16 +82,16 @@ class DataFlowAnalyzer:
             elif isinstance(statement, ast.If):
                 join = self.op(statement.test, "join", "merge possible paths", reads=[], writes=[])
                 self.link(join, next_id)
-                yes = self.block(statement.body, join, loop)
-                no = self.block(statement.orelse, join, loop)
+                yes = self.block(statement.body, join, loop, returns, raises)
+                no = self.block(statement.orelse, join, loop, returns, raises)
                 current = self.op(statement.test, "condition", expr(statement.test), writes=[])
                 self.link(current, yes, "True")
                 self.link(current, no, "False")
             elif isinstance(statement, (ast.For, ast.AsyncFor, ast.While)):
                 test = statement.test if isinstance(statement, ast.While) else statement.iter
                 current = self.op(test, "loop", expr(test), writes=[])
-                normal_exit = self.block(statement.orelse, next_id, loop)
-                body = self.block(statement.body, current, (current, next_id))
+                normal_exit = self.block(statement.orelse, next_id, loop, returns, raises)
+                body = self.block(statement.body, current, (current, next_id), returns, raises)
                 if isinstance(statement, (ast.For, ast.AsyncFor)):
                     bind = self.op(statement.target, "assignment", f"{expr(statement.target)} ← next symbolic item", reads=[expr(statement.iter)])
                     self.link(bind, body)
@@ -104,8 +106,78 @@ class DataFlowAnalyzer:
                 self.link(current, loop[0] if loop else next_id, "continue")
             elif isinstance(statement, (ast.Return, ast.Raise)):
                 current = self.op(statement, "return" if isinstance(statement, ast.Return) else "raise")
-                self.link(current, self.exit)
-            elif isinstance(statement, (ast.Try, ast.TryStar, ast.With, ast.AsyncWith, ast.Match)):
+                self.link(current, returns if isinstance(statement, ast.Return) else raises)
+            elif isinstance(statement, ast.Try):
+                # Duplicate cleanup for each completion reason: no false return-to-normal edge.
+                finalbody = statement.finalbody
+                def cleanup(target: str) -> str:
+                    return self.block(finalbody, target, loop, returns, raises)
+                normal, returned, raised = cleanup(next_id), cleanup(returns), cleanup(raises)
+                cleaned_loop = (cleanup(loop[0]), cleanup(loop[1])) if loop else None
+                dispatch = raised
+                for handler in reversed(statement.handlers):
+                    body = self.block(handler.body, normal, cleaned_loop, returned, raised)
+                    if handler.name:
+                        bind = self.op(handler, "assignment", f"{handler.name} ← exception symbolique", reads=[], writes=[handler.name])
+                        self.operations[-1].calls = []
+                        self.link(bind, body)
+                        body = bind
+                    if handler.type is None:
+                        dispatch = body
+                    else:
+                        handler_test = self.op(handler.type, "condition", f"exception compatible avec {expr(handler.type)} ?", writes=[])
+                        self.link(handler_test, body, "True")
+                        self.link(handler_test, dispatch, "False")
+                        dispatch = handler_test
+                success = self.block(statement.orelse, normal, cleaned_loop, returned, raised)
+                body = self.block(statement.body, success, cleaned_loop, returned, dispatch)
+                current = self.op(statement, "condition", "try : issue hypothétique", reads=[], writes=[])
+                self.operations[-1].calls = []
+                self.link(current, body, "Sans exception implicite")
+                self.link(current, dispatch, "Exception implicite possible")
+                self.limitations.append(f"Ligne {statement.lineno} : try partiel — exceptions implicites représentées à l’entrée du bloc, pas à chaque opération ; types non évalués et suppression du nom except non modélisée. finally traverse les sorties explicites.")
+            elif isinstance(statement, (ast.With, ast.AsyncWith)):
+                context_items = statement.items
+                def leave(target: str) -> str:
+                    result = target
+                    # Construct backwards so context managers exit in reverse entry order.
+                    for item in context_items:
+                        end = self.op(item.context_expr, "context_exit", f"Sortie du contexte : {expr(item.context_expr)}", reads=[], writes=[])
+                        self.operations[-1].calls = []
+                        self.link(end, result)
+                        result = end
+                    return result
+                cleaned_loop = (leave(loop[0]), leave(loop[1])) if loop else None
+                current = self.block(statement.body, leave(next_id), cleaned_loop, leave(returns), leave(raises))
+                for item in reversed(statement.items):
+                    names = variable_accesses(item.optional_vars)[1] if item.optional_vars else []
+                    start = self.op(item.context_expr, "context_enter", f"Entrée du contexte : {expr(item.context_expr)}", writes=names)
+                    self.link(start, current)
+                    current = start
+                self.limitations.append(f"Ligne {statement.lineno} : {type(statement).__name__} partiel — entrée, liaison et sortie ordonnées ; échecs d’entrée, suppression d’exception par __exit__ et suspension asynchrone non déterminés.")
+            elif isinstance(statement, ast.Match):
+                fallback = next_id
+                for case in reversed(statement.cases):
+                    body = self.block(case.body, next_id, loop, returns, raises)
+                    if case.guard:
+                        guard = self.op(case.guard, "condition", expr(case.guard), writes=[])
+                        self.link(guard, body, "True")
+                        self.link(guard, fallback, "False")
+                        body = guard
+                    captures = sorted({n.name for n in ast.walk(case.pattern) if isinstance(n, (ast.MatchAs, ast.MatchStar)) and n.name} | {n.rest for n in ast.walk(case.pattern) if isinstance(n, ast.MatchMapping) and n.rest})
+                    if captures:
+                        bind = self.op(case.pattern, "assignment", f"Captures : {', '.join(captures)}", reads=[], writes=captures)
+                        self.link(bind, body)
+                        body = bind
+                    pattern_test = self.op(case.pattern, "condition", f"case {expr(case.pattern)}", reads=[], writes=[])
+                    self.link(pattern_test, body, "True")
+                    if not isinstance(case.pattern, ast.MatchAs) or case.pattern.pattern is not None:
+                        self.link(pattern_test, fallback, "False")
+                    fallback = pattern_test
+                current = self.op(statement.subject, "operation", f"match {expr(statement.subject)}", writes=[])
+                self.link(current, fallback)
+                self.limitations.append(f"Ligne {statement.lineno} : match partiel — cas et gardes ordonnés, captures symboliques ; protocoles de motifs et effets de bord non évalués, captures d’un motif échoué indéterminées.")
+            elif isinstance(statement, ast.TryStar):
                 current = self.op(statement, "unknown", expr(statement))
                 self.limitations.append(f"Line {statement.lineno}: {type(statement).__name__} is opaque; exceptional/internal paths are not expanded.")
                 self.link(current, next_id, "possible continuation")

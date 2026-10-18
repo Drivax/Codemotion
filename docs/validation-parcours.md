@@ -3,7 +3,7 @@
 Projet : multi-module
 Snapshot : 39071ecc92590b155adea95a7b1a404b055026203f2080b2b998ab9684591b0a
 Révision : locale
-Moteur : 2.0
+Moteur : 2.1
 
 Parcours hypothétique, code non exécuté. 2 étapes parcourues, 11 opérations dans la fonction.
 

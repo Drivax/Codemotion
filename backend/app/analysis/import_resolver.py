@@ -1,7 +1,7 @@
 """Conservative lexical/import/type resolution; ambiguity remains visible."""
 import ast
 from app.analysis.ast_parser import Parsed, expr, location, stable_id
-from app.models.schema import GraphNode
+from app.models.schema import GraphNode, Diagnostic
 
 
 class ImportResolver:
@@ -56,6 +56,35 @@ class ImportResolver:
                     self.conditional_aliases.add((scope, local))
                 self.import_records.append(dict(scope=scope, targets=targets, local=local,
                     qualified=qualified, file=file, node=node, conditional=conditional))
+
+        for _ in range(min(len(self.import_records) + 1, 100)):
+            changed = False
+            for record in self.import_records:
+                module, _, member = record["qualified"].rpartition(".")
+                module_id = self.parsed.modules.get(module)
+                candidates = self.aliases.get(module_id, {}).get(member, []) if module_id else []
+                candidates = [t for t in candidates if self.nodes[t].kind != "Unknown"]
+                if candidates and set(candidates) != set(record["targets"]):
+                    record["targets"] = list(dict.fromkeys(candidates))
+                    # Keep all conditional bindings instead of overwriting a sibling import.
+                    self.aliases[record["scope"]][record["local"]] = list(dict.fromkeys(
+                        t for sibling in self.import_records
+                        if sibling["scope"] == record["scope"] and sibling["local"] == record["local"]
+                        for t in sibling["targets"]))
+                    self.conditional_aliases.add((record["scope"], record["local"]))
+                    changed = True
+            if not changed:
+                break
+        else:
+            self.parsed.diagnostics.append(Diagnostic(code="partial_imports", message="Réexportations : limite de 100 passes atteinte ; certaines cibles restent partielles."))
+        referenced = {t for record in self.import_records for t in record["targets"]}
+        orphaned = {key for key, node in self.nodes.items() if node.kind == "Unknown" and key not in referenced}
+        for key in orphaned:
+            del self.nodes[key]
+        self.parsed.nodes[:] = [node for node in self.parsed.nodes if node.id not in orphaned]
+        for record in self.import_records:
+            if record["local"] == "*" or any(self.nodes[t].kind == "Unknown" for t in record["targets"]):
+                self.parsed.diagnostics.append(Diagnostic(code="partial_import", message=f"Import partiel : {record['qualified']} ; étoile, cycle ou cible absente non résolus.", source=location(record["file"], record["node"])))
 
     def qualified(self, name: str) -> list[str]:
         return [n.id for n in self.nodes.values() if n.qualified_name == name]
@@ -120,6 +149,7 @@ class ImportResolver:
                     result += self.member(target, node.attr)
                 elif symbol.kind == "Module":
                     result += self.parsed.scopes.get(target, {}).get(node.attr, [])
+                    result += self.aliases.get(target, {}).get(node.attr, [])
                     result += self.qualified(symbol.qualified_name + "." + node.attr)
                 elif symbol.kind == "ExternalDependency":
                     source_location = self.nodes[scope].source
@@ -149,6 +179,8 @@ class ImportResolver:
         if any(any(d not in {"staticmethod", "classmethod"} for d in self.nodes[t].metadata.get("decorators", [])) for t in targets):
             return "candidate"
         if isinstance(node, ast.Attribute):
+            if any((target, node.attr) in self.conditional_aliases for target in self.resolve(node.value, scope)):
+                return "candidate"
             key = (scope, expr(node.value))
             class_id = self.enclosing_class(scope)
             if key in self.uncertain_types or (class_id, expr(node.value)) in self.uncertain_types:

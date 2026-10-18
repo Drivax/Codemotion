@@ -28,12 +28,13 @@ const Card = memo(function Card({ data }: NodeProps<CardNode>) {
 });
 const nodeTypes = { card: Card };
 const colors: Record<string, string> = { INHERITS: '#b39aff', INSTANTIATES: '#e4b973', CALLS: '#6be0bf', IMPORTS: '#7aabff', CONTAINS: '#596278' };
-export default function GraphCanvas({ graph, flow, symbols, selected, visited, onSelect, onRelation, layoutKey, options, saved, onSave, exportSelected, onToggleExport }: {
+export default function GraphCanvas({ graph, flow, symbols, selected, visited, onSelect, onRelation, layoutKey, options, saved, onSave, restoredSelection, exportSelected, onToggleExport }: {
   exportSelected?: string[]; onToggleExport?: (id: string) => void;
   graph?: Graph; flow?: Flow; symbols: SymbolNode[]; selected: string | null; visited?: string[];
-  onSelect: (id: string) => void; onRelation?: (edge: Relation) => void; layoutKey: number; options?: GraphOptions; saved?: CanvasState; onSave?: (state: CanvasState) => void;
+  restoredSelection?: string | null; onSelect: (id: string) => void; onRelation?: (edge: Relation) => void; layoutKey: number; options?: GraphOptions; saved?: CanvasState; onSave?: (state: CanvasState) => void;
 }) {
   const initialSaved = useRef(saved);
+  const restoredTarget = useRef(restoredSelection);
   const [instance, setInstance] = useState<ReactFlowInstance<CardNode> | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<CardNode>([]);
   const topology = useMemo(() => {
@@ -53,6 +54,8 @@ export default function GraphCanvas({ graph, flow, symbols, selected, visited, o
     // Wait for the newly filtered nodes to be mounted before fitting a decision.
     const timer = window.setTimeout(() => {
       if (!selected || !instance || options?.follow === false) return;
+      if (selected === restoredTarget.current && initialSaved.current?.viewport) return;
+      restoredTarget.current = null;
       const n = instance.getNode(selected);
       const branches = flow?.edges.filter(e => e.kind === 'control' && e.source === selected) || [];
       if (n && branches.length > 1) {

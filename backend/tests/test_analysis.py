@@ -137,9 +137,9 @@ def test_parse_failure_is_partial():
     assert any(d.code == "parse_error" for d in result.diagnostics)
 
 
-def test_exceptions_are_opaque_not_fabricated():
+def test_exceptions_are_expanded_with_explicit_limitations():
     graph = flow(analyze("def f():\n try:\n  x=1\n except Exception:\n  x=2\n return x"), "f")
-    assert graph.limitations and any(o.kind == "unknown" for o in graph.operations)
+    assert graph.limitations and any(o.expression == "x = 2" for o in graph.operations)
 
 
 def test_stable_schema_and_no_dangling_edges():

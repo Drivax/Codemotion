@@ -109,7 +109,7 @@ def test_archive_restart_validation_eviction_and_corruption(tmp_path):
     archive.put(a)
     restarted = SnapshotArchive(tmp_path, archive.budget)
     assert restarted.get(a.repository.id).repository.snapshot == a.repository.snapshot
-    assert restarted.list()["items"][0]["engine_version"] == "2.0"
+    assert restarted.list()["items"][0]["engine_version"] == "2.1"
     for invalid in ["../outside", "a" * 25, "x" * 24]:
         with pytest.raises(ValueError):
             restarted.delete(invalid)
