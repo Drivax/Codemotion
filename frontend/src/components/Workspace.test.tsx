@@ -21,7 +21,7 @@ it('opens the selected method from the flow tab, including after another flow wa
   });
   render(<Workspace />);
   fireEvent.click(screen.getByRole('button', { name: 'Explorer l’exemple' }));
-  const tab = await screen.findByRole('button', { name: 'Lecteur de flux' });
+  const tab = await screen.findByRole('button', { name: 'Suivre un parcours' });
   expect(tab).toBeDisabled();
   fireEvent.change(screen.getByRole('textbox', { name: 'Rechercher des symboles' }), { target: { value: 'drive' } });
   for (const method of ['drive', 'stop']) {
@@ -30,7 +30,7 @@ it('opens the selected method from the flow tab, including after another flow wa
     expect(tab).toBeEnabled();
     fireEvent.click(tab);
     expect(await screen.findByText(method + ' input')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Inspecteur d’objets' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Explorer' }));
   }
 });
 

@@ -117,3 +117,21 @@ def documentation(analysis: Analysis, focus: str = ""):
                 if ref.get("anchor") and ref.get("path") in anchors and ref["anchor"] not in anchors[ref["path"]]:
                     ref["status"] = "missing"
     return {"available": sorted(paths), "documents": docs, "truncated": truncated, "limitation": "Markdown simplifié : titres ATX, liens inline, noms en code et commandes python. HTML affiché comme texte ; images non chargées. Liens de référence et ancres HTML non interprétés. Une mention ne prouve pas un appel."}
+
+
+def compare_documentation_versions(current_analysis: Analysis, previous_analysis: Analysis):
+    current = documentation(current_analysis)
+    previous = documentation(previous_analysis)
+    references = {(d["path"], r["text"]): r for d in current["documents"] for section in d["sections"] for r in section["references"]}
+    changes = []
+    for doc in previous["documents"]:
+        for section in doc["sections"]:
+            for ref in section["references"]:
+                if ref["status"] not in {"file", "symbol", "directory"}:
+                    continue
+                found = references.get((doc["path"], ref["text"]))
+                if found is None or found["status"] in {"missing", "blocked"}:
+                    changes.append({"document": doc["path"], "label": ref["label"], "status": "removed" if found is None else "invalid"})
+                elif {(t.qualified_name, str(t.source)) for t in ref["targets"]} != {(t.qualified_name, str(t.source)) for t in found["targets"]}:
+                    changes.append({"document": doc["path"], "label": ref["label"], "status": "changed"})
+    return {"changes": changes, "truncated": current["truncated"] or previous["truncated"]}

@@ -70,3 +70,13 @@ def test_requested_document_is_indexed_even_beyond_default_budget():
     assert "doc05.md" not in [d["path"] for d in normal["documents"]]
     focused = documentation(analysis, "doc05.md")
     assert focused["documents"][0]["path"] == "doc05.md"
+
+
+def test_documentation_drift_distinguishes_invalid_removed_and_moved_targets():
+    from app.services.documentation import compare_documentation_versions
+    before = AnalysisEngine().analyze({"README.md": "# Start\n[old](old.py) `entry` [deleted](old.py)", "old.py": "def entry(): return 1"})
+    after = AnalysisEngine().analyze({"README.md": "# Start\n[old](old.py) `entry`", "new.py": "def entry(): return 1"})
+    result = compare_documentation_versions(after, before)
+    assert {(c["label"], c["status"]) for c in result["changes"]} == {("old", "invalid"), ("entry", "changed"), ("deleted", "removed")}
+    assert not result["truncated"]
+    assert compare_documentation_versions(before, before)["changes"] == []

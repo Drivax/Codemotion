@@ -22,3 +22,12 @@ it('includes guides in backups with validation', () => {
   backup.storage[guideKey(snapshot)] = JSON.stringify([{ ...guide, index: -1 }]);
   expect(() => parseBackup(JSON.stringify(backup))).toThrow('Guide invalide');
 });
+
+it('persists notes and completion while rejecting malformed backup fields', () => {
+ const step = { ...stepFor(ref, 'README.md', 'start')!, note: 'Inspecter le retour', completed: true };
+ const guide = { name: 'Notes', steps: [step], index: 0 };
+ localStorage.setItem(guideKey(snapshot), JSON.stringify([guide]));
+ expect(readGuides(snapshot)[0].steps[0]).toEqual(step);
+ expect(validGuides([{ ...guide, steps: [{ ...step, note: 'x'.repeat(2001) }] }])).toBe(false);
+ expect(validGuides([{ ...guide, steps: [{ ...step, completed: 'yes' }] }])).toBe(false);
+});

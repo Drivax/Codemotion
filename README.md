@@ -171,3 +171,32 @@ Importer à nouveau un dossier ou un dépôt inclut désormais ses fichiers `.md
 Les guides suivent l’ordre des mentions documentées : ce ne sont pas des traces d’exécution. Ils sont conservés par snapshot, avec 20 guides de 30 étapes maximum, et inclus dans les sauvegardes de Sessions. Un nom existant n’est pas écrasé ; dupliquer permet de modifier un parcours.
 
 L’exemple local `examples/readme-navigation` illustre les liens, les noms ambigus, les ancres et les guides. Le rendu Markdown est volontairement limité (titres ATX, paragraphes, gras, code et liens inline). HTML, scripts et images distantes ne sont pas exécutés/chargés. L’index documentaire est borné à 40 documents, 50 000 caractères par document, 200 000 au total, 200 sections par document et 500 références au total ; les troncatures sont signalées. Le sélecteur liste tous les Markdown archivés ; choisir un document le place en tête de l’index pour le charger à la demande. Les tableaux, liens de référence et ancres HTML ne bénéficient pas d’une interprétation complète. Les liens vers des fichiers non importés peuvent être signalés absents même si ces fichiers existent dans le dépôt.
+
+
+### Accueil, onglets et guides entre versions
+
+À l’import d’un projet avec Markdown, l’accueil « Comprendre » propose À propos,
+Commencer ici, Architecture et Reprendre mon parcours. Les titres du README servent
+à orienter ces raccourcis ; sans section Architecture, la carte ouvre l’arborescence.
+Les listes simples, tableaux, citations et blocs de code sont rendus sans exécuter le HTML.
+
+Les modes sont **Comprendre**, **Explorer** et **Suivre un parcours**. Les réglages
+avancés du graphe sont repliés. Jusqu’à 12 définitions restent ouvertes dans des onglets ;
+le survol ou le focus clavier donne un aperçu (Échap pour fermer). Le sélecteur des
+30 éléments récents et les onglets sont propres à la session du navigateur et au snapshot.
+Les onglets retrouvent la sélection, le parcours, la pile et le cadrage mémorisés.
+
+Un guide peut rassembler plusieurs sections, avec une note de 2 000 caractères par étape
+et une case « Étape terminée ». Les notes et la progression sont sauvegardées localement
+et incluses dans les sauvegardes. Les relations directes identifiées entre étapes portent
+leur niveau de résolution ; elles ne garantissent pas un ordre d’exécution.
+
+Dans « Documentation et guides entre versions », choisissez un ancien snapshot local.
+La comparaison signale les mentions disparues, les liens devenus invalides et les cibles
+modifiées dans le périmètre indexé. Pour récupérer un ancien guide, choisissez et validez
+chaque nouvelle cible, puis enregistrez une copie nommée. Aucune cible n’est validée
+par simple similarité de nom ; les anciens guides sont conservés. La progression est
+remise à zéro pour la version migrée, tandis que les notes et la position de reprise sont conservées.
+Les références au document d’origine restent des indications de provenance : une section
+supprimée sera signalée à l’ouverture. Un snapshot évincé ne permet plus la comparaison,
+mais ses guides locaux peuvent encore être récupérés.

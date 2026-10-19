@@ -4,7 +4,7 @@ from threading import RLock
 from typing import Literal
 from fastapi import APIRouter, HTTPException, Query
 from app.services.queries import QueryIndex
-from app.services.documentation import documentation
+from app.services.documentation import documentation, compare_documentation_versions
 
 
 def exploration_router(repository):
@@ -35,6 +35,10 @@ def exploration_router(repository):
     @router.get("/{identifier}/documentation")
     def read_documentation(identifier: str, file: str = Query("", max_length=1000)):
         return documentation(repository(identifier), file)
+
+    @router.get("/{identifier}/documentation/compare/{other}")
+    def compare_documentation(identifier: str, other: str):
+        return compare_documentation_versions(repository(identifier), repository(other))
 
     @router.get("/{identifier}/neighborhood")
     def neighborhood(identifier: str, focus: str | None = None, direction: Literal["in", "out", "both"] = "both",

@@ -86,7 +86,7 @@ test('inspection preserves playback, saves/restores a session and exports its pa
   await page.getByRole('button', { name: 'Explorer l’exemple', exact: true }).click();
   await page.getByLabel('Rechercher des symboles').fill('CreditService.process');
   await page.locator('.file-tree .search-result').click();
-  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click();
   await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   const step = await page.locator('.step-count').innerText();
   await page.locator('.graph-card').filter({ hasText: 'normalize' }).first().click();
@@ -97,11 +97,12 @@ test('inspection preserves playback, saves/restores a session and exports its pa
   await page.getByLabel('Nom du parcours').fill('Test de restauration');
   await page.getByRole('button', { name: 'Enregistrer la session' }).click();
   await expect(page.getByRole('button', { name: 'Restaurer', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Fermer' }).click();
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Sessions', exact: true }).click();
   await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
   await expect(page.locator('.step-count')).toHaveText(step);
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'MARKDOWN', exact: true }).click();
@@ -152,9 +153,10 @@ test('late symbol responses cannot replace the newer selection and direct links 
   await page.getByLabel('Rechercher des symboles').fill('Engine.start');
   await page.locator('.file-tree .search-result').click();
   await expect(page.locator('.inspector h2')).toHaveText('start');
-  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click();
   await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   const step = await page.locator('.step-count').innerText();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   const link = await page.getByLabel('Lien direct local').inputValue();
   await page.goto(link);
@@ -177,7 +179,7 @@ test('real project snapshot, variable path and every export format', async ({ pa
   const saved = { format: 1, repository, snapshot: (await snapshot.json()).repository.snapshot, state: { view: { mode: 'objects', selected: 'a9a01d55e14fca38908a2e9a', flowId: null, playback: null } } };
   await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify(saved)));
   await expect(page.locator('.inspector h2')).toHaveText('step');
-  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click();
   await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText('self._done');
   await page.getByRole('button', { name: 'Faux', exact: true }).click();
@@ -186,6 +188,7 @@ test('real project snapshot, variable path and every export format', async ({ pa
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText('decision_pd');
   await page.screenshot({ path: path.join(root, 'docs/v2-real-flow-dark.png') });
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   for (const format of ['JSON', 'SVG', 'PNG', 'MERMAID', 'MARKDOWN']) {
     const pending = page.waitForEvent('download');
@@ -204,6 +207,7 @@ test('real project snapshot, variable path and every export format', async ({ pa
   }
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Changer de thème' }).click();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Autour de l’étape active', exact: true }).click();
   await expect(page.locator('.graph-card.active')).toBeInViewport();
   expect(await page.locator('.graph-card').count()).toBeLessThan(39);
@@ -242,6 +246,7 @@ test('named branches compare persistently and selected nodes export together', a
   await page.getByRole('button', { name: 'Explorer le flux', exact: true }).click();
   await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
   await page.getByRole('button', { name: 'Vrai', exact: true }).click();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Comparer les parcours', exact: true }).click();
   await page.getByLabel('Nom du parcours à comparer').fill('Accepté');
   await page.getByRole('button', { name: 'Enregistrer le parcours actuel' }).click();
@@ -249,6 +254,7 @@ test('named branches compare persistently and selected nodes export together', a
   await page.getByRole('button', { name: 'Décision précédente', exact: true }).click();
   await page.getByRole('button', { name: 'Faux', exact: true }).click();
   await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Comparer les parcours', exact: true }).click();
   await page.getByLabel('Nom du parcours à comparer').fill('Refusé');
   await page.getByRole('button', { name: 'Enregistrer le parcours actuel' }).click();
@@ -260,6 +266,7 @@ test('named branches compare persistently and selected nodes export together', a
   await page.screenshot({ path: path.join(root, 'docs/parcours-comparaison.png') });
   await page.getByRole('button', { name: 'Restaurer Accepté', exact: true }).click();
   await expect(page.locator('.operation-title')).toContainText("return 'accept'");
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Exporter', exact: true }).click();
   await page.getByRole('checkbox', { name: /Uniquement la sélection multiple/ }).check();
   await page.locator('.export-node-list input').nth(0).check();
@@ -277,6 +284,7 @@ test('named branches compare persistently and selected nodes export together', a
   await page.goto(link);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Comparer les parcours', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Restaurer Accepté', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Restaurer Refusé', exact: true })).toBeVisible();
@@ -287,7 +295,7 @@ test('inspection pauses playback, callers restore filters, and variable evidence
   await page.getByRole('button', { name: 'Explorer l’exemple', exact: true }).click();
   await page.getByLabel('Rechercher des symboles').fill('CreditService.process');
   await page.locator('.file-tree .search-result').click();
-  await page.getByRole('button', { name: 'Lecteur de flux', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click();
   await page.getByRole('button', { name: 'Lire', exact: true }).click();
   await page.locator('.graph-card').filter({ hasText: 'normalize' }).first().click();
   await expect(page.getByRole('button', { name: 'Lire', exact: true })).toBeVisible();
@@ -295,13 +303,16 @@ test('inspection pauses playback, callers restore filters, and variable evidence
   await page.waitForTimeout(1200); // Cross an autoplay interval to prove that inspection paused it.
   await expect(page.locator('.step-count')).toHaveText(step);
   await page.getByRole('button', { name: 'Revenir à l’étape active' }).click();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Autour de l’étape active', exact: true }).click();
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByLabel('Liens du flux').selectOption('both');
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
   const callerStep = await page.locator('.step-count').innerText();
   await page.getByRole('button', { name: 'Entrer dans le flux' }).click();
   await expect(page.getByRole('navigation', { name: 'Pile des appels' })).toContainText('process');
   await expect(page.getByRole('navigation', { name: 'Pile des appels' })).toContainText('normalize');
+  if (!(await page.locator('.advanced-controls').evaluate(e => (e as HTMLDetailsElement).open))) await page.locator('.advanced-controls > summary').click();
   await page.getByLabel('Liens du flux').selectOption('data');
   await page.getByRole('button', { name: /Retour à l’appelant/ }).click();
   await expect(page.locator('.step-count')).toHaveText(callerStep);

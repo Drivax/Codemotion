@@ -6,7 +6,8 @@ test('README navigation resolves links, preserves context and saves resumable gu
   await page.goto('/');
   await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
   await expect(page.locator('.repo-title')).toContainText('readme-navigation');
-  await page.getByRole('button', { name: 'Comprendre le projet', exact: true }).click();
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'main.entry', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('entry');
@@ -29,7 +30,7 @@ test('README navigation resolves links, preserves context and saves resumable gu
   await expect(page.locator('.doc-candidates article')).toHaveCount(2);
   await page.locator('.doc-candidates article').filter({ hasText: 'main.entry' }).getByRole('button', { name: 'Explorer le flux' }).click();
   await expect(page.locator('.player-wrap')).toBeVisible();
-  await page.getByRole('button', { name: 'Comprendre le projet', exact: true }).click();
+  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Liens à vérifier', exact: true }).click();
   await expect(page.locator('.doc-main')).toContainText('Cible introuvable');
   await expect(page.locator('.doc-main')).toContainText('Lien non autorisé');
@@ -41,7 +42,7 @@ test('README navigation resolves links, preserves context and saves resumable gu
   await page.reload();
   await page.getByRole('button', { name: 'Sessions', exact: true }).click();
   await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
-  await page.getByRole('button', { name: 'Comprendre le projet', exact: true }).click();
+  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.getByRole('button', { name: 'Reprendre le guide', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('helper');
   await expect(page.getByRole('navigation', { name: 'Parcours guidé' })).toContainText('2/');
@@ -53,11 +54,13 @@ test('documentation links preserve source lines and history restores graph frami
   await page.goto('/');
   await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
   await expect(page.locator('.repo-title')).toContainText('readme-navigation');
+  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Suivre la sélection', exact: true }).click();
   await page.getByRole('button', { name: 'Agrandir le graphe', exact: true }).click();
   await page.waitForTimeout(400); // Let the graph zoom animation finish before capturing its viewport.
   const framing = await page.locator('.react-flow__viewport').getAttribute('style');
-  await page.getByRole('button', { name: 'Comprendre le projet', exact: true }).click();
+  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'main.entry', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('entry');
@@ -66,10 +69,10 @@ test('documentation links preserve source lines and history restores graph frami
   await page.getByRole('button', { name: 'Précédent', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('helper');
   await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', framing!);
-  await page.getByRole('button', { name: 'Comprendre le projet', exact: true }).click();
+  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'Source du résultat', exact: true }).click();
   await expect(page.locator('.source-toolbar')).toContainText('5–5');
-  await page.getByRole('button', { name: 'Comprendre le projet', exact: true }).click();
+  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'Guide détaillé', exact: true }).click();
   await expect(page.locator('.doc-main h2')).toHaveText('Usage');
   await page.setViewportSize({ width: 390, height: 844 });
