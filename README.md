@@ -200,3 +200,37 @@ remise à zéro pour la version migrée, tandis que les notes et la position de 
 Les références au document d’origine restent des indications de provenance : une section
 supprimée sera signalée à l’ouverture. Un snapshot évincé ne permet plus la comparaison,
 mais ses guides locaux peuvent encore être récupérés.
+
+
+### Espace de travail et accueil intégré
+
+Le mode **Comprendre** occupe maintenant une vue de l’application, avec documentation
+à gauche et aperçu du code à droite. Cliquer une référence ouvre l’aperçu ; « Ouvrir dans
+Explorer » ou « Suivre ce parcours » permet ensuite de changer de mode. Les extraits
+sont bornés à 30 lignes et 16 000 caractères dans l’interface, avec un cache de 40 entrées.
+Le graphe n’est pas rendu pendant la lecture de la documentation.
+
+L’espace courant est sauvegardé automatiquement après 600 ms sans changement et lors
+du masquage ou de la fermeture de la page : snapshot, onglets, éléments récents, mode,
+panneaux, tailles, filtres et cadrages. Au démarrage, **Reprendre là où j’en étais** restaure
+cet espace après vérification du snapshot. Cette sauvegarde unique est limitée à 4 Mo ;
+un stockage indisponible est signalé. Elle conserve le dernier espace de ce navigateur,
+mais ne remplace pas une sauvegarde exportée. Les sessions nommées incluent également
+les onglets et le mode Comprendre. Les onglets inactifs retrouvent leur définition ;
+leur pile individuelle reste en mémoire pendant la session. La pile active est sauvegardée.
+
+Dans un guide, ouvrez les relations entre étapes puis « Explorer les fonctions
+intermédiaires » : la recherche propose au plus cinq chemins de profondeur six,
+avec le statut des liens. Une fonction du chemin peut être prévisualisée sans modifier
+le guide. L’absence de chemin dans ce périmètre ne prouve pas l’absence de dépendance.
+
+La migration affiche le nom du projet, la date locale d’enregistrement du snapshot
+(et non la date du commit Git), et les extraits ancien/nouveau côte à côte. Choisir
+une cible ne la valide pas : utilisez ensuite le bouton de validation de l’étape.
+Les snapshots évincés sont signalés et l’ancienne définition peut être indisponible.
+
+Les mesures reproductibles sur RL sont dans `docs/navigation-v5-performance.json` ;
+`node scripts/benchmark-navigation.mjs` rejoue les calculs avant/après sur l’archive locale.
+Ces mesures isolées portent sur les recherches et la préparation des membres du graphe,
+sans inclure le réseau ni la mise en page. Le scénario navigateur produit aussi
+`docs/navigation-v5-browser-performance.json`, une mesure d’interactions en développement.

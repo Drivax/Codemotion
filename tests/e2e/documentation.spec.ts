@@ -6,10 +6,11 @@ test('README navigation resolves links, preserves context and saves resumable gu
   await page.goto('/');
   await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
   await expect(page.locator('.repo-title')).toContainText('readme-navigation');
-  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.getByRole('button', { name: 'Retour à Explorer', exact: true }).click();
   await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'main.entry', exact: true }).click();
+  await page.getByRole('button', { name: 'Ouvrir dans Explorer', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('entry');
   await page.getByRole('button', { name: 'Documentation du symbole', exact: true }).click();
   await expect(page.locator('.doc-main h2')).toHaveText('Démarrer');
@@ -36,7 +37,7 @@ test('README navigation resolves links, preserves context and saves resumable gu
   await expect(page.locator('.doc-main')).toContainText('Lien non autorisé');
   await expect(page.locator('.doc-main img')).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__docExecuted)).toBeUndefined();
-  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.getByRole('button', { name: 'Retour à Explorer', exact: true }).click();
   await page.getByRole('button', { name: 'Sessions', exact: true }).click();
   await page.getByRole('button', { name: 'Enregistrer la session', exact: true }).click();
   await page.reload();
@@ -54,7 +55,7 @@ test('documentation links preserve source lines and history restores graph frami
   await page.goto('/');
   await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
   await expect(page.locator('.repo-title')).toContainText('readme-navigation');
-  await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await page.getByRole('button', { name: 'Retour à Explorer', exact: true }).click();
   await page.locator('.advanced-controls > summary').click();
   await page.getByRole('button', { name: 'Suivre la sélection', exact: true }).click();
   await page.getByRole('button', { name: 'Agrandir le graphe', exact: true }).click();
@@ -63,6 +64,7 @@ test('documentation links preserve source lines and history restores graph frami
   await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'main.entry', exact: true }).click();
+  await page.getByRole('button', { name: 'Ouvrir dans Explorer', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('entry');
   await page.getByRole('button', { name: 'Réduire le graphe', exact: true }).click();
   await page.waitForTimeout(400);
@@ -71,12 +73,13 @@ test('documentation links preserve source lines and history restores graph frami
   await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', framing!);
   await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'Source du résultat', exact: true }).click();
+  await page.getByRole('button', { name: 'Ouvrir dans Explorer', exact: true }).click();
   await expect(page.locator('.source-toolbar')).toContainText('5–5');
   await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'Guide détaillé', exact: true }).click();
   await expect(page.locator('.doc-main h2')).toHaveText('Usage');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Fermer', exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Retour à Explorer', exact: true })).toBeInViewport();
   await expect(page.getByRole('combobox', { name: 'Document', exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(root, 'docs/readme-navigation-mobile.png') });
 });

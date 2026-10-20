@@ -1,0 +1,8 @@
+{
+  "snapshot": "e460fb3e9ea1f9637f9223b5b8511fa2a7c455694d28e7d31de8290199e4de46",
+  "environment": "Playwright Chromium, Next development server; single run, no before/after claim",
+  "load_ms": 616,
+  "search_ui_ms": 131,
+  "preview_ui_ms": 365,
+  "flow_ui_ms": 542
+}

@@ -1,0 +1,58 @@
+import { expect, test } from '../../frontend/node_modules/@playwright/test';
+import path from 'node:path';
+import fs from 'node:fs';
+const root = path.resolve(__dirname, '../..');
+test('integrated documentation previews code and resumes tabs, mode, panels and framing', async ({ page }) => {
+ const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+ await page.goto('/'); await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
+ await expect(page.locator('.understand-view')).toBeVisible(); await expect(page.locator('dialog[open]')).toHaveCount(0);
+ await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
+ await page.locator('.doc-prose').getByRole('button', { name: 'main.entry', exact: true }).click();
+ await expect(page.locator('.doc-code')).toContainText('def entry'); await expect(page.locator('.understand-view')).toBeVisible();
+ await page.screenshot({ path: path.join(root, 'docs/navigation-v5-understand.png') });
+ await page.getByRole('button', { name: 'Ouvrir dans Explorer' }).click();
+ await expect(page.getByRole('navigation', { name: 'Définitions ouvertes' }).getByRole('button', { name: 'entry', exact: true })).toBeVisible();
+ await page.locator('.advanced-controls > summary').click(); await page.getByRole('button', { name: 'Suivre la sélection', exact: true }).click();
+ await page.getByRole('button', { name: 'Agrandir le graphe', exact: true }).click(); await page.waitForTimeout(400);
+ const framing = await page.locator('.react-flow__viewport').getAttribute('style');
+ await page.getByRole('button', { name: 'Détails', exact: true }).click();
+ await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspace.v1') || '{}').state?.panels.inspector)).toBe(false);
+ await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais', exact: true }).click();
+ await expect(page.locator('.workspace')).toHaveClass(/hide-inspector/); await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', framing!);
+ await expect(page.getByRole('navigation', { name: 'Définitions ouvertes' }).getByRole('button', { name: 'entry', exact: true })).toBeVisible();
+ await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
+ await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspace.v1') || '{}').state?.documentationOpen)).toBe(true);
+ await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais', exact: true }).click(); await expect(page.locator('.understand-view')).toBeVisible();
+ await page.setViewportSize({ width: 390, height: 844 }); await expect(page.getByRole('button', { name: 'Retour à Explorer' })).toBeInViewport();
+ const documentBox = await page.locator('.documentation').boundingBox(), codeBox = await page.locator('.doc-code').boundingBox(); expect(codeBox!.y).toBeGreaterThanOrEqual(documentBox!.y + documentBox!.height - 1);
+ await page.screenshot({ path: path.join(root, 'docs/navigation-v5-mobile.png') });
+ expect(errors).toEqual([]);
+});
+test('guide exposes a static path through an intermediate function', async ({ page }) => {
+ const base = 'http://127.0.0.1:8000/api';
+ const job = await (await page.request.post(base + '/repositories/import', { data: { name: 'guide-intermediate', files: { 'main.py': 'def end(): return 1\ndef middle(): return end()\ndef start(): return middle()', 'README.md': '# Guide\n`start` puis `end`' } } })).json();
+ let id = ''; await expect.poll(async () => { const r = await (await page.request.get(base + '/jobs/' + job.id)).json(); id = r.repository_id; return r.status; }).toBe('completed');
+ const summary = await (await page.request.get(base + '/repositories/' + id)).json();
+ await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify({ format: 1, repository: id, snapshot: summary.repository.snapshot, state: { view: { mode: 'objects', selected: null, flowId: null, playback: null }, documentationOpen: true } })));
+ await page.getByRole('button', { name: 'Générer un guide depuis cette section', exact: true }).click();
+ await page.getByText('Relations statiques entre les étapes', { exact: true }).click();
+ await page.getByRole('button', { name: 'Explorer les fonctions intermédiaires', exact: true }).click();
+ await page.locator('.guide-path').getByRole('button', { name: 'main.middle', exact: true }).click();
+ await expect(page.locator('.doc-code')).toContainText('def middle');
+});
+
+test('measures search, preview and flow on the archived RL snapshot', async ({ page }) => {
+ const base = 'http://127.0.0.1:8000/api', id = 'e460fb3e9ea1f9637f9223b5';
+ const metadata = await page.request.get(`${base}/repositories/${id}`); test.skip(!metadata.ok(), 'Snapshot RL absent du disque'); const summary = await metadata.json();
+ const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+ const begin = Date.now();
+ await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify({ format: 1, repository: id, snapshot: summary.repository.snapshot, state: { view: { mode: 'objects', selected: null, flowId: null, playback: null } } })));
+ await expect(page.locator('.repo-title')).toContainText('Dynamic');
+ const loaded = Date.now(); await page.getByLabel('Rechercher des symboles').fill('CreditLimitEnv.step');
+ await expect(page.locator('.file-tree .search-result').first()).toBeVisible(); const searched = Date.now();
+ await page.locator('.file-tree .search-result').first().click(); await expect(page.locator('.inspector h2')).toHaveText('step');
+ const beforePreview = Date.now(); await page.getByRole('navigation', { name: 'Définitions ouvertes' }).getByRole('button', { name: 'step', exact: true }).focus(); await expect(page.locator('.symbol-preview pre')).toContainText('def step'); const previewed = Date.now();
+ await page.keyboard.press('Escape'); const beforeFlow = Date.now(); await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click(); await expect(page.locator('.player-wrap')).toBeVisible(); await expect(page.locator('.graph-card').first()).toBeVisible();
+ fs.writeFileSync(path.join(root, 'docs/navigation-v5-browser-performance.json'), JSON.stringify({ snapshot: summary.repository.snapshot, environment: 'Playwright Chromium, Next development server; single run, no before/after claim', load_ms: loaded - begin, search_ui_ms: searched - loaded, preview_ui_ms: previewed - beforePreview, flow_ui_ms: Date.now() - beforeFlow }, null, 2));
+ expect(errors).toEqual([]);
+});

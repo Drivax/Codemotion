@@ -1,0 +1,14 @@
+{
+  "snapshot": "e460fb3e9ea1f9637f9223b5b8511fa2a7c455694d28e7d31de8290199e4de46",
+  "symbols": 35790,
+  "graph_cards": 60,
+  "iterations": 15,
+  "metric": "median milliseconds, warm JS computations; not end-to-end browser latency",
+  "search_before_ms": 3.139,
+  "search_after_ms": 0.098,
+  "graph_members_before_ms": 53.765,
+  "graph_members_after_ms": 0.003,
+  "preview_file": "src/credit_rl/envs/credit_limit_env.py",
+  "preview_full_bytes": 13906,
+  "preview_30_lines_bytes": 1271
+}

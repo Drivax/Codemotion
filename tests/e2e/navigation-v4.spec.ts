@@ -51,7 +51,7 @@ test('welcome, rich Markdown, annotated multi-section guide, tabs and explicit m
  const save = page.getByRole('button', { name: 'Enregistrer les cibles validées' });
  await expect(save).toBeDisabled();
  const selects = page.locator('select[aria-label^="Nouvelle cible"]');
- for (let i = 0; i < await selects.count(); i++) { const suggested = selects.nth(i).locator('optgroup[label="Suggestions par nom"] option'); const value = await (await suggested.count() ? suggested.first() : selects.nth(i).locator('optgroup[label="Autres symboles"] option').filter({ hasText: /^new —/ }).first()).getAttribute('value'); await selects.nth(i).selectOption(value!); }
+ for (let i = 0; i < await selects.count(); i++) { const suggested = selects.nth(i).locator('optgroup[label="Suggestions par nom"] option'); const value = await (await suggested.count() ? suggested.first() : selects.nth(i).locator('optgroup[label="Autres symboles"] option').filter({ hasText: /^new —/ }).first()).getAttribute('value'); await selects.nth(i).selectOption(value!); await expect(save).toBeDisabled(); await page.getByRole('button', { name: `Valider la cible de l’étape ${i + 1}`, exact: true }).click(); }
  await expect(save).toBeEnabled(); await save.click();
  await expect(page.locator('.doc-guides')).toContainText('Guide réparé enregistré');
  expect(await page.evaluate(s => JSON.parse(localStorage.getItem('codemotion.guides.v1:' + s)!)[0].steps[0], old)).toMatchObject({ completed: true, note: 'Vérifier l’appel' });

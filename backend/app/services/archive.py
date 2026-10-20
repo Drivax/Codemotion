@@ -2,6 +2,7 @@
 import json
 import re
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from app.models.schema import Analysis
 
@@ -73,6 +74,7 @@ class SnapshotArchive:
                     if (isinstance(item, dict) and item.get("format") == 1 and isinstance(item.get("bytes"), int)
                             and 0 <= item["bytes"] <= self.budget and isinstance(item.get("repository"), dict)
                             and item["repository"].get("id") == path.stem):
+                        item["saved_at"] = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
                         items.append(item)
                 except (ValueError, OSError):
                     continue

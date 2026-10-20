@@ -80,3 +80,19 @@ def test_documentation_drift_distinguishes_invalid_removed_and_moved_targets():
     assert {(c["label"], c["status"]) for c in result["changes"]} == {("old", "invalid"), ("entry", "changed"), ("deleted", "removed")}
     assert not result["truncated"]
     assert compare_documentation_versions(before, before)["changes"] == []
+
+
+def test_snippet_is_bounded_and_never_reads_outside_snapshot():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.services.exploration import exploration_router
+    app = FastAPI()
+    analysis = project("# Docs")
+    app.include_router(exploration_router(lambda _: analysis))
+    with TestClient(app) as client:
+        response = client.get("/api/repositories/test/snippet", params={"file": "main.py", "line": 2, "count": 1})
+        assert response.status_code == 200
+        assert response.json()["source"] == " return 1"
+        assert client.get("/api/repositories/test/snippet", params={"file": "../../secret"}).status_code == 404
+        assert client.get("/api/repositories/test/snippet", params={"file": "main.py", "count": 81}).status_code == 422
+        assert client.get("/api/repositories/test/snippet", params={"file": "main.py", "line": 999}).status_code == 400

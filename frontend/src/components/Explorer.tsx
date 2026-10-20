@@ -18,7 +18,8 @@ export default function Explorer({ files, symbols, selected, onSelect, onFile, s
     }
     return map;
   }, [symbols]);
-  const matches = useMemo(() => symbols.filter(s => s.source && ['Class', 'Function', 'Method', 'Module'].includes(s.kind) && (s.qualified_name + ' ' + s.source.file).toLowerCase().includes(search.toLowerCase())), [symbols, search]);
+  const searchIndex = useMemo(() => symbols.filter(s => s.source && ['Class', 'Function', 'Method', 'Module'].includes(s.kind)).map(symbol => ({ symbol, text: (symbol.qualified_name + ' ' + symbol.source!.file).toLowerCase() })), [symbols]);
+  const matches = useMemo(() => { const query = search.toLowerCase(); return query ? searchIndex.filter(entry => entry.text.includes(query)).map(entry => entry.symbol) : []; }, [searchIndex, search]);
   const toggle = (path: string) => onExpanded(expanded.includes(path) ? expanded.filter(p => p !== path) : [...expanded, path]);
   const reveal = () => {
     const node = symbols.find(s => s.id === selected), file = node?.source?.file;

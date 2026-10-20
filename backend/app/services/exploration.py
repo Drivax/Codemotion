@@ -32,6 +32,17 @@ def exploration_router(repository):
         except ValueError as error:
             raise HTTPException(400, str(error)) from error
 
+    @router.get("/{identifier}/snippet")
+    def snippet(identifier: str, file: str, line: int = Query(1, ge=1), count: int = Query(20, ge=1, le=80)):
+        record = next((f for f in repository(identifier).files if f.path == file), None)
+        if record is None:
+            raise HTTPException(404, "Fichier absent du snapshot")
+        lines = record.source.splitlines()
+        if line > max(1, len(lines)):
+            raise HTTPException(400, "Ligne absente du fichier")
+        excerpt = "\n".join(lines[line - 1:line - 1 + count])
+        return {"file": file, "line": line, "source": excerpt[:16000], "truncated": len(excerpt) > 16000 or line - 1 + count < len(lines)}
+
     @router.get("/{identifier}/documentation")
     def read_documentation(identifier: str, file: str = Query("", max_length=1000)):
         return documentation(repository(identifier), file)
