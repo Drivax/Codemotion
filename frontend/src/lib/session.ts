@@ -1,3 +1,4 @@
+import { validDocumentationState } from './documentation';
 export interface CanvasState { positions: Record<string, {x:number;y:number}>; viewport: {x:number;y:number;zoom:number} }
 export interface GraphOptions { edgeMode: 'control'|'data'|'both'; variable: string; orientation: 'TB'|'LR'; follow: boolean; hideSelf: boolean; light: boolean; nearby?: boolean; dimSecondary?: boolean }
 export const defaultGraphOptions: GraphOptions = { edgeMode:'control',variable:'',orientation:'TB',follow:true,hideSelf:true,light:false,nearby:false,dimSecondary:true };
@@ -14,6 +15,19 @@ export function validateSessionState(value: unknown): asserts value is Record<st
   const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
   const fail = () => { throw new Error('Session invalide ou incompatible. Réimportez le snapshot.'); };
   if (!object(value) || !object(value.view)) return fail();
+  if (value.documentationState !== undefined && !validDocumentationState(value.documentationState)) fail();
+  if (value.tabVisits !== undefined) {
+    if (!object(value.tabVisits) || Object.keys(value.tabVisits).length > 12) return fail();
+    for (const [id, visit] of Object.entries(value.tabVisits)) {
+      if (!object(visit) || !object(visit.view) || !Array.isArray(visit.stack) || !object(visit.options) || !object(visit.canvases) || visit.view.selected !== id) return fail();
+      // Explicit fields avoid recursively accepting nested session containers.
+      validateSessionState({ view: visit.view, stack: visit.stack, options: visit.options, canvases: visit.canvases });
+      if (visit.inspected !== null && typeof visit.inspected !== 'string') fail();
+      if (visit.hierarchy !== null && typeof visit.hierarchy !== 'string') fail();
+      if (typeof visit.focus !== 'boolean') fail();
+      if (visit.sourceOverride !== null) { const loc = visit.sourceOverride; if (!object(loc) || typeof loc.file !== 'string' || !['start_line', 'end_line', 'start_column', 'end_column'].every(k => Number.isInteger(loc[k]) && Number(loc[k]) >= (k.endsWith('line') ? 1 : 0))) fail(); }
+    }
+  }
   const view = value.view;
   if (!['objects','flow'].includes(String(view.mode)) || (view.selected !== null && typeof view.selected !== 'string') || (view.flowId !== null && typeof view.flowId !== 'string')) fail();
   if (view.mode === 'flow' && (!view.flowId || !object(view.playback))) fail();

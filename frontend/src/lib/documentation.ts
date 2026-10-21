@@ -14,3 +14,11 @@ export function stepFor(ref: DocReference, document: string, section: string, ta
   if (ref.status === 'file' && ref.path?.endsWith('.py')) return { label: ref.label, path: ref.path, line: ref.line, document, section };
   return null;
 }
+
+export interface DocumentationState { file: string; sectionId: string; home: boolean; query: string; pickedSections: string[]; draft: GuideStep[]; name: string; activeGuide: string | null }
+export const emptyDocumentationState = (): DocumentationState => ({ file: '', sectionId: '', home: true, query: '', pickedSections: [], draft: [], name: 'Découverte du projet', activeGuide: null });
+export function validDocumentationState(value: unknown): value is DocumentationState {
+ if (!value || typeof value !== 'object') return false;
+ const v = value as DocumentationState;
+ return ['file', 'sectionId', 'query', 'name'].every(k => typeof v[k as 'file'] === 'string') && v.name.length <= 100 && typeof v.home === 'boolean' && (v.activeGuide === null || typeof v.activeGuide === 'string') && Array.isArray(v.pickedSections) && v.pickedSections.length <= 8000 && v.pickedSections.every(s => typeof s === 'string') && Array.isArray(v.draft) && v.draft.length <= 30 && (!v.draft.length || validGuides([{ name: 'Brouillon', index: 0, steps: v.draft }]));
+}

@@ -1,0 +1,48 @@
+import { expect, test } from '../../frontend/node_modules/@playwright/test';
+import path from 'node:path';
+const root = path.resolve(__dirname, '../..');
+test('resumes exact README section and unfinished annotated guide without saving a named guide', async ({ page }) => {
+ const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+ await page.goto('/'); await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
+ await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
+ await page.getByRole('button', { name: 'Générer un guide depuis cette section', exact: true }).click();
+ await page.getByLabel('Nom du guide', { exact: true }).fill('Brouillon conservé');
+ await page.getByLabel('Note de l’étape 1', { exact: true }).fill('Revoir la transformation');
+ await page.locator('.doc-prose').getByRole('button', { name: 'Guide détaillé', exact: true }).click();
+ await expect(page.locator('.doc-main h2')).toHaveText('Usage');
+ await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspace.v1') || '{}').state?.documentationState.sectionId)).toBe('usage');
+ await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais' }).click();
+ await expect(page.locator('.doc-main h2')).toHaveText('Usage');
+ await expect(page.getByRole('combobox', { name: 'Document', exact: true })).toHaveValue('docs/guide.md');
+ await expect(page.getByLabel('Nom du guide', { exact: true })).toHaveValue('Brouillon conservé');
+ await expect(page.getByLabel('Note de l’étape 1', { exact: true })).toHaveValue('Revoir la transformation');
+ await expect(page.getByRole('button', { name: 'Enregistrer le guide', exact: true })).toBeEnabled();
+ await page.getByRole('button', { name: 'Sessions', exact: true }).click();
+ await page.getByLabel('Nom du parcours', { exact: true }).fill('Section et brouillon'); await page.getByRole('button', { name: 'Enregistrer la session', exact: true }).click();
+ await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+ await page.getByLabel('Nom du guide', { exact: true }).fill('Autre brouillon');
+ await page.getByRole('button', { name: 'Sessions', exact: true }).click(); await page.getByRole('button', { name: 'Restaurer', exact: true }).click();
+ await expect(page.getByLabel('Nom du guide', { exact: true })).toHaveValue('Brouillon conservé');
+ await expect(page.locator('.doc-main h2')).toHaveText('Usage'); expect(errors).toEqual([]);
+});
+test('restores independent branches and positions for two function tabs', async ({ page }) => {
+ const base = 'http://127.0.0.1:8000/api';
+ const job = await (await page.request.post(base + '/repositories/import', { data: { name: 'resume-tabs', files: { 'main.py': 'def first(x):\n if x:\n  return 1\n return 2\ndef second(x):\n if x:\n  return 3\n return 4' } } })).json();
+ let id = ''; await expect.poll(async () => { const j = await (await page.request.get(base + '/jobs/' + job.id)).json(); id = j.repository_id; return j.status; }).toBe('completed');
+ const summary = await (await page.request.get(base + '/repositories/' + id)).json();
+ const nodes = await (await page.request.get(base + '/repositories/' + id + '/symbols')).json(); const first = nodes.items.find((s: { name: string }) => s.name === 'first');
+ await page.goto('/#codemotion=' + encodeURIComponent(JSON.stringify({ format: 1, repository: id, snapshot: summary.repository.snapshot, state: { view: { mode: 'objects', selected: first.id, flowId: null, playback: null } } })));
+ await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click(); await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click(); await page.getByRole('button', { name: 'Vrai', exact: true }).click();
+ const firstCount = await page.locator('.step-count').innerText(); const firstTitle = await page.locator('.operation-title').innerText();
+ await page.getByLabel('Rechercher des symboles').fill('second'); await page.locator('.file-tree .search-result').click();
+ await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click(); await page.getByRole('button', { name: 'Avancer à la prochaine décision ou à la fin' }).click(); await page.getByRole('button', { name: 'Faux', exact: true }).click();
+ const secondCount = await page.locator('.step-count').innerText(); const secondTitle = await page.locator('.operation-title').innerText();
+ await expect.poll(() => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('codemotion.workspace.v1') || '{}').state?.tabVisits || {}).length)).toBe(2);
+ // Remove the deep link so restart tests the saved workspace, not its initial URL.
+ await page.evaluate(() => history.replaceState(null, '', '/')); await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais' }).click();
+ await expect(page.locator('.operation-title')).toHaveText(secondTitle); await expect(page.locator('.step-count')).toHaveText(secondCount);
+ await page.getByRole('navigation', { name: 'Définitions ouvertes' }).getByRole('button', { name: 'first', exact: true }).click();
+ await expect(page.locator('.operation-title')).toHaveText(firstTitle); await expect(page.locator('.step-count')).toHaveText(firstCount);
+ await page.getByRole('navigation', { name: 'Définitions ouvertes' }).getByRole('button', { name: 'second', exact: true }).click();
+ await expect(page.locator('.operation-title')).toHaveText(secondTitle); await expect(page.locator('.step-count')).toHaveText(secondCount);
+});

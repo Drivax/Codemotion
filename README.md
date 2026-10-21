@@ -216,8 +216,14 @@ panneaux, tailles, filtres et cadrages. Au démarrage, **Reprendre là où j’e
 cet espace après vérification du snapshot. Cette sauvegarde unique est limitée à 4 Mo ;
 un stockage indisponible est signalé. Elle conserve le dernier espace de ce navigateur,
 mais ne remplace pas une sauvegarde exportée. Les sessions nommées incluent également
-les onglets et le mode Comprendre. Les onglets inactifs retrouvent leur définition ;
-leur pile individuelle reste en mémoire pendant la session. La pile active est sauvegardée.
+les onglets et le mode Comprendre. Chaque onglet conserve son parcours, ses choix de
+branches, sa position, sa pile d’appels, son inspection et son cadrage. Tous les parcours
+sont vérifiés contre le snapshot avant restauration.
+
+La reprise conserve aussi le document et la section exacte affichés dans Comprendre,
+la recherche, les sections sélectionnées et le brouillon de guide (nom, étapes, notes
+et progression), même sans avoir enregistré le guide. Ces données sont incluses dans
+les sessions nommées et leur export/import ; les anciennes sessions restent compatibles.
 
 Dans un guide, ouvrez les relations entre étapes puis « Explorer les fonctions
 intermédiaires » : la recherche propose au plus cinq chemins de profondeur six,
