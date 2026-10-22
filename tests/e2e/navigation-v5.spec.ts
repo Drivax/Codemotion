@@ -16,12 +16,12 @@ test('integrated documentation previews code and resumes tabs, mode, panels and 
  await page.getByRole('button', { name: 'Agrandir le graphe', exact: true }).click(); await page.waitForTimeout(400);
  const framing = await page.locator('.react-flow__viewport').getAttribute('style');
  await page.getByRole('button', { name: 'Détails', exact: true }).click();
- await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspace.v1') || '{}').state?.panels.inspector)).toBe(false);
+ await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspaces.v2') || '[]')[0]?.state?.panels.inspector)).toBe(false);
  await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais', exact: true }).click();
  await expect(page.locator('.workspace')).toHaveClass(/hide-inspector/); await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', framing!);
  await expect(page.getByRole('navigation', { name: 'Définitions ouvertes' }).getByRole('button', { name: 'entry', exact: true })).toBeVisible();
  await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
- await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspace.v1') || '{}').state?.documentationOpen)).toBe(true);
+ await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('codemotion.workspaces.v2') || '[]')[0]?.state?.documentationOpen)).toBe(true);
  await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais', exact: true }).click(); await expect(page.locator('.understand-view')).toBeVisible();
  await page.setViewportSize({ width: 390, height: 844 }); await expect(page.getByRole('button', { name: 'Retour à Explorer' })).toBeInViewport();
  const documentBox = await page.locator('.documentation').boundingBox(), codeBox = await page.locator('.doc-code').boundingBox(); expect(codeBox!.y).toBeGreaterThanOrEqual(documentBox!.y + documentBox!.height - 1);

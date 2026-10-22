@@ -213,9 +213,21 @@ Le graphe n’est pas rendu pendant la lecture de la documentation.
 L’espace courant est sauvegardé automatiquement après 600 ms sans changement et lors
 du masquage ou de la fermeture de la page : snapshot, onglets, éléments récents, mode,
 panneaux, tailles, filtres et cadrages. Au démarrage, **Reprendre là où j’en étais** restaure
-cet espace après vérification du snapshot. Cette sauvegarde unique est limitée à 4 Mo ;
-un stockage indisponible est signalé. Elle conserve le dernier espace de ce navigateur,
-mais ne remplace pas une sauvegarde exportée. Les sessions nommées incluent également
+cet espace après vérification du snapshot. L’accueil affiche les projets récents avec leur
+nom, leur dernière ouverture et leur snapshot. Chaque snapshot conserve son espace,
+y compris lorsque plusieurs versions portent le même nom. Le bouton **Accueil des projets**
+sauvegarde les changements avant de revenir à la liste. L’ancienne reprise unique est
+récupérée automatiquement lors du premier enregistrement réussi.
+
+La reprise est limitée à 30 espaces et 4 Mo au total dans ce navigateur, sans éviction
+silencieuse. Le statut **Enregistré** indique la date de dernière sauvegarde ; **Échec de
+sauvegarde** explique les erreurs, notamment lorsque le stockage est plein. **Exporter mon
+travail** exporte le projet actif : état courant en mémoire, guides, parcours nommés,
+points d’arrêt et snapshot, même après un échec de sauvegarde locale. Les autres projets
+ne bloquent pas cet export de secours. Les limites de
+l’export existantes restent applicables. **Gérer les reprises** permet de retirer une ancienne
+reprise puis de réessayer. Le retrait ne supprime ni le code ni les sessions nommées.
+L’export depuis la fenêtre Sessions reste consacré aux sessions nommées. Les sessions nommées incluent également
 les onglets et le mode Comprendre. Chaque onglet conserve son parcours, ses choix de
 branches, sa position, sa pile d’appels, son inspection et son cadrage. Tous les parcours
 sont vérifiés contre le snapshot avant restauration.

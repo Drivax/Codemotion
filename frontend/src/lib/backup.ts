@@ -21,9 +21,10 @@ export function parseBackup(text: string): Backup {
   for (const snapshot of b.snapshots) if (new Blob([JSON.stringify(snapshot)]).size > 40_000_000) throw new Error('Un snapshot dépasse la limite de restauration de 40 Mo.');
   return b;
 }
-export async function exportBackup() {
-  const sessions = readSessions(), storage: Record<string, string> = {};
-  for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i)!; if (extraKey.test(key)) storage[key] = localStorage.getItem(key)!; }
+export async function exportBackup(current?: StoredSession) {
+  const sessions = current ? [{ ...current, title: `Reprise — ${current.title}`.slice(0, 120) }] : readSessions();
+  const storage: Record<string, string> = {};
+  for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i)!; if (extraKey.test(key) && (!current || key.split(':')[1] === current.snapshot)) storage[key] = localStorage.getItem(key)!; }
   const snapshots: unknown[] = [];
   const ids = new Set(sessions.map(s => s.repository));
   Object.keys(storage).forEach(key => ids.add(key.split(':')[1].slice(0, 24)));
