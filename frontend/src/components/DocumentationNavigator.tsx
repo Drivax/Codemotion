@@ -14,11 +14,11 @@ export default function DocumentationNavigator({ repository, snapshot, open, onO
   const [home, setHome] = useState(initialState.home);
   const [data, setData] = useState<Documentation | null>(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [file, setFile] = useState(initialState.file), [sectionId, setSectionId] = useState(initialState.sectionId), [query, setQuery] = useState(initialState.query), [chosen, setChosen] = useState<DocReference | null>(null);
-  const [guides, setGuides] = useState(() => readGuides(snapshot)), [draft, setDraft] = useState<GuideStep[]>(initialState.draft), [name, setName] = useState(initialState.name), [activeGuide, setActiveGuide] = useState<string | null>(initialState.activeGuide);
+  const [guides, setGuides] = useState(() => readGuides(snapshot).map(g => g.name === initialState.activeGuide && initialState.guideIndex !== undefined && initialState.guideIndex < g.steps.length ? { ...g, index: initialState.guideIndex } : g)), [draft, setDraft] = useState<GuideStep[]>(initialState.draft), [name, setName] = useState(initialState.name), [activeGuide, setActiveGuide] = useState<string | null>(initialState.activeGuide);
   useEffect(() => { const c = new AbortController(); api<Documentation>(`/repositories/${repository}/documentation?file=${encodeURIComponent(file)}`, { signal: c.signal }).then(value => { if (!Array.isArray(value.documents)) throw new Error('Index documentaire incompatible.'); setData(value); setError(''); }).catch(e => { if (!c.signal.aborted) setError(String(e)); }); return () => c.abort(); }, [repository, retry, file]);
   const previousRequest = useRef(requestedFile);
   useEffect(() => { if (requestedFile && requestedFile !== previousRequest.current) { setHome(false); setFile(requestedFile); setSectionId(''); } previousRequest.current = requestedFile; }, [requestedFile]);
-  useEffect(() => { onStateChange({ file, sectionId, query, home, pickedSections, draft, name, activeGuide }); }, [file, sectionId, query, home, pickedSections, draft, name, activeGuide, onStateChange]);
+  useEffect(() => { onStateChange({ file, sectionId, query, home, pickedSections, draft, name, activeGuide, guideIndex: guides.find(g => g.name === activeGuide)?.index }); }, [file, sectionId, query, home, pickedSections, draft, name, activeGuide, guides, onStateChange]);
   useEffect(() => { if (chosen) window.document.querySelector('.doc-candidates')?.scrollIntoView?.({ block: 'nearest' }); }, [chosen]);
   useEffect(() => { setChosen(null); }, [file, sectionId]);
   const document = file ? data?.documents.find(d => d.path === file) : data?.documents[0];

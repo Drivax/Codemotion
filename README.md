@@ -252,3 +252,20 @@ Les mesures reproductibles sur RL sont dans `docs/navigation-v5-performance.json
 Ces mesures isolées portent sur les recherches et la préparation des membres du graphe,
 sans inclure le réseau ni la mise en page. Le scénario navigateur produit aussi
 `docs/navigation-v5-browser-performance.json`, une mesure d’interactions en développement.
+
+### Historique commun et repères nommés
+
+La barre de navigation commune reste visible dans Comprendre, Explorer et Suivre un
+parcours. **Précédent / Suivant** traverse les fonctions, sections documentaires et étapes
+de guide, en restaurant la position du lecteur, la pile, les filtres et le cadrage du graphe.
+Le menu **Historique** permet de revenir directement à une visite. Les 40 dernières
+transitions sont conservées en mémoire pendant la session ; les notes et brouillons
+actuels ne sont pas annulés par un retour dans l’historique.
+
+**Repères nommés** enregistre le contexte courant avec un nom et une note modifiables.
+Les 30 repères maximum sont propres au snapshot et inclus dans la reprise, les sessions
+nommées et les exports. Ouvrir un repère met le lecteur en pause et vérifie son parcours.
+
+**Rouvrir le dernier onglet fermé** restaure la définition et son parcours, y compris après
+rechargement et reprise du projet. Un onglet fermé est conservé en plus des 12 onglets
+ouverts ; cette action ne constitue pas un historique de toutes les fermetures.

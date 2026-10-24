@@ -5,8 +5,8 @@ export type RecentWorkspace = StoredSession & { lastOpenedAt?: string };
 function valid(s: RecentWorkspace): boolean {
  try {
   if (!s || typeof s.title !== 'string' || !Number.isFinite(Date.parse(s.savedAt)) || s.format !== 1 || !/^[a-f0-9]{24}$/.test(s.repository) || !/^[a-f0-9]{64}$/.test(s.snapshot) || (s.lastOpenedAt !== undefined && !Number.isFinite(Date.parse(s.lastOpenedAt)))) return false;
-  validateSessionState(s.state); const tabs = s.state.tabState as { tabs: unknown[]; recent: unknown[] } | undefined;
-  return !tabs || (Array.isArray(tabs.tabs) && tabs.tabs.length <= 12 && Array.isArray(tabs.recent) && tabs.recent.length <= 30 && [...tabs.tabs, ...tabs.recent].every(id => typeof id === 'string'));
+  validateSessionState(s.state); const tabs = s.state.tabState as { tabs: unknown[]; recent: unknown[]; closed?: unknown[] } | undefined;
+  return !tabs || ((tabs.closed === undefined || Array.isArray(tabs.closed) && tabs.closed.length <= 1 && tabs.closed.every(id => typeof id === 'string')) && Array.isArray(tabs.tabs) && tabs.tabs.length <= 12 && Array.isArray(tabs.recent) && tabs.recent.length <= 30 && [...tabs.tabs, ...tabs.recent].every(id => typeof id === 'string'));
  } catch { return false; }
 }
 export function readWorkspaces(): RecentWorkspace[] {

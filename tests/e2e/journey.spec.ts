@@ -1,0 +1,38 @@
+import { expect, test } from '../../frontend/node_modules/@playwright/test';
+import path from 'node:path';
+const root = path.resolve(__dirname, '../..');
+test('common history restores README sections and guide positions', async ({ page }) => {
+ await page.goto('/'); await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
+ await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
+ await page.locator('.doc-prose').getByRole('button', { name: 'Guide détaillé', exact: true }).click();
+ await expect(page.locator('.doc-main h2')).toHaveText('Usage');
+ await page.getByRole('button', { name: 'Précédent', exact: true }).click(); await expect(page.locator('.doc-main h2')).toHaveText('Démarrer');
+ await page.getByRole('button', { name: 'Suivant', exact: true }).click(); await expect(page.locator('.doc-main h2')).toHaveText('Usage');
+ await page.getByRole('button', { name: 'Précédent', exact: true }).click();
+ await page.getByRole('button', { name: 'Générer un guide depuis cette section', exact: true }).click();
+ await page.getByRole('button', { name: 'Enregistrer le guide', exact: true }).click();
+ await page.getByRole('button', { name: 'Reprendre le guide', exact: true }).click();
+ await expect(page.locator('.guide-dock')).toContainText('1/');
+ await page.getByRole('button', { name: 'Étape suivante du guide', exact: true }).click(); await expect(page.locator('.guide-dock')).toContainText('2/');
+ await page.getByRole('button', { name: 'Précédent', exact: true }).click(); await expect(page.locator('.guide-dock')).toContainText('1/');
+ await page.getByRole('button', { name: 'Suivant', exact: true }).click(); await expect(page.locator('.guide-dock')).toContainText('2/');
+});
+test('named bookmarks and last closed tab restore their flow after reload', async ({ page }) => {
+ await page.goto('/'); await page.getByLabel('Importer un dossier Python').setInputFiles(path.join(root, 'examples/readme-navigation'));
+ await page.getByRole('button', { name: 'Retour à Explorer', exact: true }).click();
+ await page.getByRole('button', { name: 'Suivre un parcours', exact: true }).click();
+ await page.getByRole('button', { name: 'Étape suivante', exact: true }).click();
+ const count = await page.locator('.step-count').innerText();
+ await page.getByRole('button', { name: /Repères nommés/ }).click();
+ await page.getByLabel('Nom du repère', { exact: true }).fill('Entrée entraînement RL'); await page.getByLabel('Note du repère', { exact: true }).fill('Vérifier les données entrantes');
+ await page.getByRole('button', { name: 'Enregistrer le repère', exact: true }).click(); await page.getByRole('button', { name: 'Fermer', exact: true }).click();
+ await page.getByLabel('Rechercher des symboles').fill('entry'); await page.locator('.file-tree .search-result').first().click();
+ await page.getByRole('button', { name: 'Fermer l’onglet helper', exact: true }).click();
+ await expect(page.locator('.save-status')).toContainText('Enregistré'); await page.reload(); await page.getByRole('button', { name: 'Reprendre là où j’en étais' }).click();
+ await page.getByRole('button', { name: 'Rouvrir le dernier onglet fermé', exact: true }).click(); await expect(page.locator('.step-count')).toHaveText(count);
+ await page.getByRole('button', { name: /Repères nommés/ }).click();
+ await expect(page.getByLabel('Renommer le repère', { exact: true })).toHaveValue('Entrée entraînement RL');
+ await expect(page.getByLabel('Modifier la note du repère', { exact: true })).toHaveValue('Vérifier les données entrantes');
+ await page.getByRole('button', { name: 'Ouvrir le repère', exact: true }).click(); await expect(page.locator('.step-count')).toHaveText(count);
+ await page.screenshot({ path: path.join(root, 'docs/journey-navigation.png') });
+});

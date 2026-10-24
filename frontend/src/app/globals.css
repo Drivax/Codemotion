@@ -40,3 +40,7 @@
 @media(min-width:901px){.mobile-doc-return{display:none}}
 
 .save-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:none;padding:8px 20px;border-bottom:1px solid var(--line);background:var(--panel);font-size:11px}.save-status>div{flex:1;min-width:180px}.save-status.saved strong{color:var(--mint)}.save-status.error{border-left:4px solid var(--amber)}.save-status.error strong{color:var(--amber)}.save-status p{margin:4px 0}.save-status button{border:1px solid var(--line)}.recent-projects{margin:26px 0}.recent-projects>h2{font-size:20px}.recent-projects>p{font-size:12px;color:var(--muted)}.recent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.recent-grid .resume-workspace{background:var(--panel);border-color:var(--line);min-width:0}.resume-workspace h3{overflow-wrap:anywhere;font-size:16px;margin:0 0 10px}.resume-workspace p{font-size:11px}.resume-workspace button{margin:4px 4px 0 0}.welcome{align-items:safe center}
+
+.journey-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 20px;border-bottom:1px solid var(--line);flex:none}.journey-nav select{max-width:45vw}.journey-nav button{border:1px solid var(--line)}
+
+@media(max-width:850px){.journey-nav{padding:4px 8px;gap:4px}.journey-nav button{font-size:10px;padding:4px 6px}.journey-nav select{font-size:10px;max-width:135px}.symbol-tabs>button,.symbol-tabs>select{font-size:10px;max-width:calc(50% - 4px)}.source-panel{max-height:10dvh}.player-wrap{flex-shrink:0}}

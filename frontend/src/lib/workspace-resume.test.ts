@@ -48,3 +48,12 @@ it('rejects oversized collections without replacing existing data', () => {
  expect(() => writeWorkspace({ ...session, state: { ...session.state, search: 'x'.repeat(4_000_000) } })).toThrow('4 Mo');
  expect(localStorage.getItem(RESUME_KEY)).toBe(previous);
 });
+
+it('persists named bookmarks and the last closed tab with its context', () => {
+ const visit = { view: session.state.view, stack: [], options: defaultGraphOptions, canvases: {}, sourceOverride: null, inspected: null, hierarchy: null, focus: false, documentationOpen: true, documentationState: { ...emptyDocumentationState(), sectionId: 'usage', guideIndex: 1 } };
+ const state = { ...session.state, tabState: { tabs: [], recent: ['one'], closed: ['one'] }, bookmarks: [{ id: 'mark', name: 'Entraînement', note: 'Entrées', visit }] };
+ writeWorkspace({ ...session, state }); expect(readWorkspace()?.state).toEqual(state);
+ expect(() => validateSessionState({ ...state, bookmarks: [{ ...state.bookmarks[0], note: 'x'.repeat(2001) }] })).toThrow();
+ expect(() => validateSessionState({ ...state, bookmarks: [{ ...state.bookmarks[0], visit: { ...visit, documentationState: { ...visit.documentationState, guideIndex: -1 } } }] })).toThrow();
+ expect(() => writeWorkspace({ ...session, state: { ...state, tabState: { ...state.tabState, closed: ['one', 'two'] } } })).toThrow();
+});

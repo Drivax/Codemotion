@@ -17,7 +17,7 @@ export function validateSessionState(value: unknown): asserts value is Record<st
   if (!object(value) || !object(value.view)) return fail();
   if (value.documentationState !== undefined && !validDocumentationState(value.documentationState)) fail();
   if (value.tabVisits !== undefined) {
-    if (!object(value.tabVisits) || Object.keys(value.tabVisits).length > 12) return fail();
+    if (!object(value.tabVisits) || Object.keys(value.tabVisits).length > 13) return fail();
     for (const [id, visit] of Object.entries(value.tabVisits)) {
       if (!object(visit) || !object(visit.view) || !Array.isArray(visit.stack) || !object(visit.options) || !object(visit.canvases) || visit.view.selected !== id) return fail();
       // Explicit fields avoid recursively accepting nested session containers.
@@ -26,6 +26,14 @@ export function validateSessionState(value: unknown): asserts value is Record<st
       if (visit.hierarchy !== null && typeof visit.hierarchy !== 'string') fail();
       if (typeof visit.focus !== 'boolean') fail();
       if (visit.sourceOverride !== null) { const loc = visit.sourceOverride; if (!object(loc) || typeof loc.file !== 'string' || !['start_line', 'end_line', 'start_column', 'end_column'].every(k => Number.isInteger(loc[k]) && Number(loc[k]) >= (k.endsWith('line') ? 1 : 0))) fail(); }
+    }
+  }
+  if (value.bookmarks !== undefined) {
+    if (!Array.isArray(value.bookmarks) || value.bookmarks.length > 30) return fail();
+    for (const b of value.bookmarks) {
+      if (!object(b) || typeof b.id !== 'string' || typeof b.name !== 'string' || b.name.length > 100 || typeof b.note !== 'string' || b.note.length > 2000 || !object(b.visit) || !object(b.visit.view)) return fail();
+      const v = b.visit; const view = v.view as Record<string, unknown>;
+      validateSessionState({ view: v.view, documentationState: v.documentationState, tabVisits: { [String(view.selected)]: { ...v, view: { ...view, selected: String(view.selected) } } } });
     }
   }
   const view = value.view;

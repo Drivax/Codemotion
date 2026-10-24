@@ -69,9 +69,13 @@ test('documentation links preserve source lines and history restores graph frami
   await page.getByRole('button', { name: 'Réduire le graphe', exact: true }).click();
   await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'Précédent', exact: true }).click();
+  await expect(page.locator('.doc-main h2')).toHaveText('Démarrer');
+  await page.getByRole('button', { name: 'Précédent', exact: true }).click();
+  await page.getByRole('button', { name: 'Précédent', exact: true }).click();
   await expect(page.locator('.inspector h2')).toHaveText('helper');
   await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', framing!);
   await page.getByRole('button', { name: 'Comprendre', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Sommaire du README' }).getByRole('button', { name: 'Démarrer', exact: true }).click();
   await page.locator('.doc-prose').getByRole('button', { name: 'Source du résultat', exact: true }).click();
   await page.getByRole('button', { name: 'Ouvrir dans Explorer', exact: true }).click();
   await expect(page.locator('.source-toolbar')).toContainText('5–5');
